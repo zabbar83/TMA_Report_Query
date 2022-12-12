@@ -1,0 +1,135 @@
+--Teritory wise Manpower
+WITH present as(
+            SELECT t.id teritory_id, t.TERITORY_NAME,
+            max(CASE WHEN bur.ROLES_ID = 12 THEN 1 ELSE 0 END) tmoPresentCount,
+            sum(CASE WHEN bur.ROLES_ID = 11 THEN 1 ELSE 0 END) tmsPresentCount,
+            sum(CASE WHEN bur.ROLES_ID = 12 THEN 1 ELSE 0 END) tmrPresentCount,
+            sum(CASE WHEN r.role = 'BA' THEN 1 ELSE 0 END) baPresentCount,
+            count(DISTINCT bua.BR_TEAM_TEAM_ID) AS teamCount
+            FROM TERITORY t
+            JOIN bruser bu ON bu.TERITORY_ID = t.ID 
+            JOIN bruser_attendance bua ON bua.BR_USER_USER_ID = bu.USER_ID 
+            AND to_date(TO_CHAR(bua.ATTENDANCE_DATE_TIME, 'dd-mm-yyyy'), 'dd-mm-yyyy') BETWEEN to_date(:fromDate, 'dd-mm-yyyy')  AND to_date(:toDate, 'dd-mm-yyyy')
+            JOIN bruser_roles bur ON bur.BRUSER_USER_ID = bu.USER_ID
+            JOIN ROLE r ON r.ID = bur.ROLES_ID
+            WHERE bu.IS_ACCOUNT_NON_EXPIRED = 1
+            GROUP BY t.id, t.TERITORY_NAME 
+            ),
+       manpower AS(SELECT TERRITORY_ID, sum(tmo_mp) tmo_mp, sum(tms_mp) tms_mp, sum(tmr_mp) tmr_mp,  sum(ba_mp) ba_mp
+      FROM (
+      SELECT DISTINCT pap.TERRITORY_ID, TO_CHAR(b.TARGET_DATE, 'dd-mm-yyyy'),
+	  (CASE WHEN pa.ROLE_ID = 10 THEN pa.ALLOCATION END) tmo_mp, 
+	  (CASE WHEN pa.ROLE_ID = 11 THEN pa.ALLOCATION END) tms_mp, 
+	  (CASE WHEN pa.ROLE_ID = 12 THEN pa.ALLOCATION END) tmr_mp, 
+	  (CASE WHEN pa.ROLE_ID = 13 THEN pa.ALLOCATION END) ba_mp
+	  FROM ASSIGN_POSITION_ALLOCATION apa 
+	  JOIN POSITION_ALLOCATION_POLICY pap ON apa.POSITION_ALLOCATION_POLICY_ID = pap.ID  
+	  JOIN POSITION_ALLOCATION pa ON pa.POSITION_ALLOCATION_POLICY_ID = pap.ID
+	  JOIN V_TERITORY_ALL vta ON apa.TERITORY_ID = vta.TERITORY_ID 
+	  JOIN BRACTIVITY b ON vta.ROUTE_ID = b.ROUTE_ID AND TO_CHAR(apa.TARGET_DATE, 'dd-mm-yyyy') = TO_CHAR(b.TARGET_DATE, 'dd-mm-yyyy')
+	  WHERE to_date(TO_CHAR(b.TARGET_DATE, 'dd-mm-yyyy'), 'dd-mm-yyyy') BETWEEN to_date(:fromDate, 'dd-mm-yyyy')  AND to_date(:toDate, 'dd-mm-yyyy')
+	  AND to_date(TO_CHAR(apa.TARGET_DATE, 'dd-mm-yyyy'), 'dd-mm-yyyy') BETWEEN to_date(:fromDate, 'dd-mm-yyyy')  AND to_date(:toDate, 'dd-mm-yyyy'))
+	  GROUP BY TERRITORY_ID
+            ),
+            active as(
+             SELECT t.id teritory_id,
+            max(CASE WHEN r.role = 'TMR' THEN 1 ELSE 0 END) tmoActiveCount,
+            sum(CASE WHEN r.role = 'TMS' THEN 1 ELSE 0 END) tmsActiveCount,
+            sum(CASE WHEN r.role = 'TMR' THEN 1 ELSE 0 END) tmrActiveCount,
+            sum(CASE WHEN r.role = 'BA' THEN 1 ELSE 0 END) baActiveCount  from
+        ((SELECT ba.BR_USER_USER_ID br_user, TO_CHAR(ba.ATTENDANCE_DATE_TIME, 'dd-mm-yyyy') 
+        FROM BRUSER_ATTENDANCE ba  
+        WHERE to_date(TO_CHAR(ba.ATTENDANCE_DATE_TIME, 'dd-mm-yyyy'), 'dd-mm-yyyy') BETWEEN to_date(:fromDate, 'dd-mm-yyyy')  AND to_date(:toDate, 'dd-mm-yyyy'))
+        UNION all
+        (SELECT bul.BR_USER_USER_ID br_user,  TO_CHAR(bul.LEAVE_DATE_TIME, 'dd-mm-yyyy')
+        FROM BR_USER_LEAVE bul 
+        WHERE to_date(TO_CHAR(bul.LEAVE_DATE_TIME, 'dd-mm-yyyy'), 'dd-mm-yyyy') BETWEEN to_date(:fromDate, 'dd-mm-yyyy')  AND to_date(:toDate, 'dd-mm-yyyy'))) br_user
+        JOIN BRUSER_ROLES br ON br_user.br_user = br.BRUSER_USER_ID
+        JOIN BRUSER bu ON br_user.br_user = bu.USER_ID 
+        JOIN TERITORY t ON bu.TERITORY_ID = t.ID AND bu.IS_ACCOUNT_NON_EXPIRED = 1
+        JOIN "ROLE" r ON br.ROLES_ID = r.ID
+        GROUP BY t.id),
+            cause_of_absent as(
+            SELECT t.id TERITORY_ID, 
+            sum(CASE WHEN r.role = 'TMR' AND bul.LEAVE_TYPE_ID = 5 then 1 end) AS "TMR Duty off Count",
+            sum(CASE WHEN r.role = 'TMS' AND bul.LEAVE_TYPE_ID = 5 then 1 end) AS "TMS Duty off Count",
+            sum(CASE WHEN r.role = 'BA' AND bul.LEAVE_TYPE_ID = 5 then 1 end) AS "BA Duty off Count",
+            sum(CASE WHEN r.role = 'TMO' AND bul.LEAVE_TYPE_ID = 6 then 1 end) AS "TMO Sick Count",
+            sum(CASE WHEN r.role = 'TMO' AND bul.LEAVE_TYPE_ID = 7 then 1 end) AS "TMO Family member died Count",
+            sum(CASE WHEN r.role = 'TMO' AND bul.LEAVE_TYPE_ID = 8 then 1 end) AS "TMO Family Sick Count",
+            sum(CASE WHEN r.role = 'TMO' AND bul.LEAVE_TYPE_ID = 9 then 1 end) AS "TMO Family problem Count",
+            sum(CASE WHEN r.role = 'TMO' AND bul.LEAVE_TYPE_ID = 10 then 1 end) AS "TMO Without information Count",
+            sum(CASE WHEN r.role = 'TMO' AND bul.LEAVE_TYPE_ID = 11 then 1 end) AS "TMO Other issue Count",
+            sum(CASE WHEN r.role = 'TMS' AND bul.LEAVE_TYPE_ID = 6 then 1 end) AS "TMS Sick Count",
+            sum(CASE WHEN r.role = 'TMS' AND bul.LEAVE_TYPE_ID = 7 then 1 end) AS "TMS Family member died Count",
+            sum(CASE WHEN r.role = 'TMS' AND bul.LEAVE_TYPE_ID = 8 then 1 end) AS "TMS Family Sick Count",
+            sum(CASE WHEN r.role = 'TMS' AND bul.LEAVE_TYPE_ID = 9 then 1 end) AS "TMS Family problem Count",
+            sum(CASE WHEN r.role = 'TMS' AND bul.LEAVE_TYPE_ID = 10 then 1 end) AS "TMS Without information Count",
+            sum(CASE WHEN r.role = 'TMS' AND bul.LEAVE_TYPE_ID = 11 then 1 end) AS "TMS Other issue Count",
+            sum(CASE WHEN r.role = 'TMR' AND bul.LEAVE_TYPE_ID = 6 then 1 end) AS "TMR Sick Count",
+            sum(CASE WHEN r.role = 'TMR' AND bul.LEAVE_TYPE_ID = 7 then 1 end) AS "TMR Family member died Count",
+            sum(CASE WHEN r.role = 'TMR' AND bul.LEAVE_TYPE_ID = 8 then 1 end) AS "TMR Family Sick Count",
+            sum(CASE WHEN r.role = 'TMR' AND bul.LEAVE_TYPE_ID = 9 then 1 end) AS "TMR Family problem Count",
+            sum(CASE WHEN r.role = 'TMR' AND bul.LEAVE_TYPE_ID = 10 then 1 end) AS "TMR Without information Count",
+            sum(CASE WHEN r.role = 'TMR' AND bul.LEAVE_TYPE_ID = 11 then 1 end) AS "TMR Other issue Count",
+            sum(CASE WHEN r.role = 'BA' AND bul.LEAVE_TYPE_ID = 6 then 1 end) AS "BA Sick Count",
+            sum(CASE WHEN r.role = 'BA' AND bul.LEAVE_TYPE_ID = 7 then 1 end) AS "BA Family member died Count",
+            sum(CASE WHEN r.role = 'BA' AND bul.LEAVE_TYPE_ID = 8 then 1 end) AS "BA Family Sick Count",
+            sum(CASE WHEN r.role = 'BA' AND bul.LEAVE_TYPE_ID = 9 then 1 end) AS "BA Family problem Count",
+            sum(CASE WHEN r.role = 'BA' AND bul.LEAVE_TYPE_ID = 10 then 1 end) AS "BA Without information Count",
+            sum(CASE WHEN r.role = 'BA' AND bul.LEAVE_TYPE_ID = 11 then 1 end) AS "BA Other issue Count"
+            FROM BR_USER_LEAVE bul
+            JOIN BRUSER b ON b.USER_ID = bul.BR_USER_USER_ID
+            JOIN TERITORY t ON b.TERITORY_ID = t.ID
+            JOIN bruser_roles bur ON bur.BRUSER_USER_ID = bul.BR_USER_USER_ID
+            JOIN ROLE r ON r.ID = bur.ROLES_ID
+            WHERE to_date(TO_CHAR(bul.LEAVE_DATE_TIME, 'dd-mm-yyyy'), 'dd-mm-yyyy') BETWEEN to_date(:fromDate, 'dd-mm-yyyy')  AND to_date(:toDate, 'dd-mm-yyyy') 
+            GROUP BY t.id
+            )
+            SELECT DISTINCT vta.DIVISION_ID divisionId, vta.DIVISION_NAME divisionName, vta.TERITORY_ID teritoryId, vta.TERITORY_NAME teritoryName,
+            nvl(teamCount,0) "teamCount", 
+            nvl(tmo_mp,0) "tmoManpower", 
+            nvl("TMS_MP",0) "tmsManpower", 
+            nvl("TMR_MP",0) "tmrManpower",
+            nvl("BA_MP",0) "baManpower",
+            0 "tmoAttendanceCount",
+            nvl(tmsPresentCount,0) "tmsAttendanceCount",
+            nvl(tmrPresentCount,0) "tmrAttendanceCount", 
+            nvl(baPresentCount,0) "baAttendanceCount",
+            0 "tmoVacantCount", 
+             nvl("TMR_MP" - ac.tmrActiveCount,0) "tmrVacantCount",
+            nvl("TMS_MP" - ac.tmsActiveCount,0) "tmsVacantCount", 
+            nvl("BA_MP" - ac.baActiveCount,0) "baVacantCount",
+            0 "tmoAbsentCount", 
+            nvl(ac.tmsActiveCount - tmsPresentCount, 0) "tmsAbsentCount",
+            nvl(ac.tmrActiveCount - tmrPresentCount, 0) "tmrAbsentCount",
+            nvl(ac.baActiveCount - baPresentCount, 0) "baAbsentCount",
+            nvl("TMS Duty off Count",0) "tmsDutyoffCount",
+            nvl("TMS Sick Count", 0) "tmsSickCount",
+            nvl("TMS Family member died Count", 0) "tmsFamilymemberdiedCount",
+            nvl("TMS Family Sick Count", 0) "tmsFamilySickCount", 
+            nvl("TMS Family problem Count", 0) "tmsFamilyProblemCount",
+            nvl("TMS Without information Count", 0) "tmsWithoutInformationCount", 
+            nvl("TMS Other issue Count", 0) "tmsOtherIssueCount",
+            nvl("TMR Duty off Count",0) "tmrDutyoffCount",
+            nvl("TMR Sick Count", 0) "tmrSickCount", 
+            nvl("TMR Family member died Count", 0) "tmrFamilymemberdiedCount",
+            nvl("TMR Family Sick Count", 0) "tmrFamilySickCount", 
+            nvl("TMR Family problem Count", 0) "tmrFamilyProblemCount",
+            nvl("TMR Without information Count", 0) "tmrWithoutInformationCount",
+            nvl("TMR Other issue Count", 0) "tmrOtherIssueCount",
+            nvl("BA Duty off Count",0) "baDutyoffCount",
+            nvl("BA Sick Count", 0) "baSickCount",
+            nvl("BA Family member died Count", 0) "baFamilymemberdiedCount",
+            nvl("BA Family Sick Count", 0) "baFamilySickCount", 
+            nvl("BA Family problem Count", 0) "baFamilyProblemCount",
+            nvl("BA Without information Count", 0) "baWithoutInformationCount", 
+            nvl("BA Other issue Count", 0) "baOtherIssueCount"
+            FROM V_TERITORY_ALL vta
+            LEFT JOIN present p ON vta.TERITORY_ID = p.teritory_id
+            left JOIN manpower m ON vta.TERITORY_ID = m.TERRITORY_ID
+            left JOIN active ac ON vta.TERITORY_ID = ac.teritory_id
+            LEFT JOIN cause_of_absent coa ON vta.TERITORY_ID = coa.TERITORY_ID
+            WHERE vta.teritory_id LIKE '%' || :territoryId || '%' 
+            AND vta.DIVISION_ID LIKE '%' || :divisionId || '%'
+            ORDER BY vta.TERITORY_ID

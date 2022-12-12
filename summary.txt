@@ -1,0 +1,168 @@
+--activity summary report
+WITH giftCount as
+(
+--giftCount	
+SELECT  to_char(bg.ADD_DATE_TIME,'dd-mm-yyyy') tarDate,
+        count(DISTINCT bg.CONSUMER_ID) giftCnt 
+FROM BRGIFT bg  
+WHERE bg.GIFT_ITEM_ID IN (11,14) AND GIFT_QUANTITY > 0
+AND to_char(bg.ADD_DATE_TIME,'dd-mm-yyyy') = :targetDate
+GROUP BY to_char(bg.ADD_DATE_TIME,'dd-mm-yyyy')
+),
+target as 
+(
+--target
+SELECT to_char(ab.TARGET_DATE,'dd-mm-yyyy') tarDate,
+    sum(case when ab.product_id in(1,4,16,23) THEN ab.CONTACT_TARGET else 0 end) numberOfSalesTarget,
+	(NVL(sum(CASE WHEN ab.PRODUCT_ID IN (4) THEN ab.CONTACT_TARGET ELSE 0 END),0) + 
+    NVL(sum(CASE WHEN ab.PRODUCT_ID IN (23) THEN ab.CONTACT_TARGET ELSE 0 END),0)) AS numMariseTarget,
+    NVL(sum(CASE WHEN ab.PRODUCT_ID IN (4) THEN ab.CONTACT_TARGET ELSE 0 END),0) numMariseTargetRegular,
+	sum(case WHEN ab.PRODUCT_ID IN (23) then ab.CONTACT_TARGET else 0 end)  AS numMariseTargetmmt,
+	NVL(sum(CASE WHEN ab.PRODUCT_ID IN (1) THEN ab.CONTACT_TARGET ELSE 0 END),0) AS numRallyTarget,
+	NVL(sum(CASE WHEN ab.PRODUCT_ID IN (16) THEN ab.CONTACT_TARGET ELSE 0 END),0) AS numSunmoonTarget,
+    NVL(sum(case when ab.product_id in(1,4,16,23) THEN ab.FREE_SAMPLING else 0 end),0)samplingStickAllowted,
+    (NVL(sum(case when ab.product_id in(1,4) THEN ab.PACKET_SALES_TARGET else 0 end),0) + 
+    NVL(sum(case when ab.product_id in(16,23) THEN ab.BUNDLE_SALES_TARGET else 0 end),0))packetSalesTarget,
+	NVL(sum(CASE WHEN ab.PRODUCT_ID IN (4) THEN ab.PACKET_SALES_TARGET ELSE 0 END)+
+    sum(CASE WHEN ab.PRODUCT_ID IN (23) THEN ab.BUNDLE_SALES_TARGET ELSE 0 END),0) AS packetMariseTarget,
+	NVL(sum(CASE WHEN ab.PRODUCT_ID IN (1) THEN ab.PACKET_SALES_TARGET ELSE 0 END),0) AS packetRallyTarget,
+	NVL(sum(CASE WHEN ab.PRODUCT_ID IN (16) THEN ab.BUNDLE_SALES_TARGET ELSE 0 END),0) AS packetSunmoonTarget
+FROM    ASSIGN_BRAND ab
+JOIN    BRUSER_ATTENDANCE ba 
+        ON ba.BR_TEAM_TEAM_ID = ab.BR_TEAM_ID 
+        AND ab.TARGET_DATE = ba.ATTENDANCE_DATE 
+--JOIN    bruser_teritory but 
+--        ON but.teritory_id = ab.teritory_id
+--        AND ab.target_date between but.ed and but.td
+JOIN    bruser_roles bur ON ba.br_user_user_id = bur.bruser_user_id
+JOIN    TERITORY t 
+        ON t.ID = ab.TERITORY_ID 
+JOIN    TERITORY d 
+        ON t.PARENT_ID = d.ID
+WHERE   to_char(ba.ATTENDANCE_DATE,'dd-mm-yyyy')=:targetDate
+and     to_char(ab.TARGET_DATE,'dd-mm-yyyy') = :targetDate
+and     bur.roles_id = 12
+AND     d.ID LIKE '%'||:divisionId ||'%'
+AND     t.ID LIKE '%'||:territoryId ||'%'
+GROUP   BY to_char(ab.TARGET_DATE,'dd-mm-yyyy')
+),
+achievement as 
+(
+--activity
+SELECT to_char(ba.TARGET_DATE,'dd-mm-yyyy') tarDate, 
+    count(DISTINCT ba.ID) numberOfSalesContacted,
+	NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (4,5,22,23) THEN 1 ELSE 0 END),0) AS numMariseContacted,
+    NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (22,23) THEN 1 ELSE 0 END),0) AS numMariseContactedMmt,
+    NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (4,5) THEN 1 ELSE 0 END),0) AS numMariseContactedRegular,
+    NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (22,23) and ba.IS_REPEAT_CONTACT = 0 THEN 1 ELSE 0 END),0) AS mariseNewMmt,
+    NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (22,23) and  ba.IS_REPEAT_CONTACT = 1 THEN 1 ELSE 0 END),0) AS mariseRepeatMmt,
+    NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (4,5) and ba.IS_REPEAT_CONTACT = 0 THEN 1 ELSE 0 END),0) AS mariseNewRegular,
+    NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (4,5) and ba.IS_REPEAT_CONTACT = 1 THEN 1 ELSE 0 END),0) AS mariseRepeatRegular,
+	NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (1,2,11,12,13,14) THEN 1 ELSE 0 END),0) AS numRallyContacted,
+	NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (16,17,18,19,20,21) THEN 1 ELSE 0 END),0) AS numSunmoonContacted,
+	NVL(sum(CASE WHEN ba.IS_REPEAT_CONTACT = 0 THEN 1 ELSE 0 END),0) AS typeOfContactNew,
+	NVL(sum(CASE WHEN ba.IS_REPEAT_CONTACT = 1 THEN 1 ELSE 0 END),0) AS typeOfContactRepeat,
+	NVL(sum(CASE WHEN ba.IS_REPEAT_CONTACT = 0 AND ba.OFFERED_BRAND IN (4,5,22,23) THEN 1 ELSE 0 END),0) AS mariseNew,
+	NVL(sum(CASE WHEN ba.IS_REPEAT_CONTACT = 1 AND ba.OFFERED_BRAND IN (4,5,22,23) THEN 1 ELSE 0 END),0) AS mariseRepeat,
+	NVL(sum(CASE WHEN ba.IS_REPEAT_CONTACT = 0 AND ba.OFFERED_BRAND IN (1,2,11,12,13,14) THEN 1 ELSE 0 END),0) AS rallyNew,
+	NVL(sum(CASE WHEN ba.IS_REPEAT_CONTACT = 1 AND ba.OFFERED_BRAND IN (1,2,11,12,13,14) THEN 1 ELSE 0 END),0) AS rallyRepeat,
+	NVL(sum(CASE WHEN ba.IS_REPEAT_CONTACT = 0 AND ba.OFFERED_BRAND IN (16,17,18,19,20,21) THEN 1 ELSE 0 END),0) AS sunmoonNew,
+	NVL(sum(CASE WHEN ba.IS_REPEAT_CONTACT = 1 AND ba.OFFERED_BRAND IN (16,17,18,19,20,21) THEN 1 ELSE 0 END),0) AS sunmoonRepeat,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 1 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandDerby,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 2 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandPilot,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 3 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandHw,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 4 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandSheikh,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 5 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandRoyals,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 6 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandK2,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 7 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandNavy,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 8 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandReal,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 9 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandStar,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 10 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandGoldleaf,
+	NVL(sum(CASE WHEN ba.USING_BRAND = 11 THEN 1 ELSE 0 END),0) AS contactedConsumerBrandLs,
+	NVL(sum(CASE WHEN ba.SAMPLING_NO > 0 THEN 1 ELSE 0 END),0) samplingStickUsed,
+    NVL(sum(CASE WHEN ba.DAY_TRIED > 0 THEN 1 ELSE 0 END),0) trialOutlet,
+	NVL(sum(CASE WHEN ba.SWAPPING_NO > 0 THEN 1 END),0) numberOfSwappingConsumer,
+	NVL(sum(ba.SWAPPING_NO),0) numberOfSwappingStick,
+	(NVL(sum(CASE WHEN ba.SALES_PACK_QTY > 0 THEN 1 ELSE 0 END),0) +
+    NVL(sum(CASE WHEN ba.BUNDLE_PRODUCT_QTY > 0 THEN 1 ELSE 0 END),0)) packetSalesAchieved,
+	(NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (4,5) AND ba.SALES_PACK_QTY > 0 THEN 1 ELSE 0 END),0) + 
+    NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (22,23) AND ba.BUNDLE_PRODUCT_QTY > 0 THEN 1 ELSE 0 END),0))AS packetMariseAchieved,
+    NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (22,23) and ba.BUNDLE_PRODUCT_QTY > 0 THEN 1 ELSE 0 END),0) AS pacSalesMmt,
+    NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (4,5) and ba.SALES_PACK_QTY > 0 THEN 1 ELSE 0 END),0) AS pacSalesRegular,
+	NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (1,2,11,12,13,14) AND ba.SALES_PACK_QTY > 0  THEN 1 ELSE 0 END),0) AS packetRallyAchieved,
+	NVL(sum(CASE WHEN ba.OFFERED_BRAND IN (16,17,18,19,20,21) AND ba.BUNDLE_PRODUCT_QTY > 0  THEN 1 ELSE 0 END),0) AS packetSunmoonAchieved,
+	count(DISTINCT ba.OUTLET_ID) visitedOutlet
+FROM BRACTIVITY ba 
+--JOIN teritory r 
+--ON ba.route_id=r.id
+--JOIN teritory z
+--ON r.parent_id=z.id
+--JOIN teritory t
+--ON z.parent_id=t.id
+--JOIN teritory d
+--ON t.parent_id=d.id
+JOIN V_TERITORY_ALL vta ON ba.ROUTE_ID = vta.ROUTE_ID
+WHERE to_char(ba.TARGET_DATE,'dd-mm-yyyy') = :targetDate
+AND vta.DIVISION_ID LIKE '%'||:divisionId ||'%'
+AND vta.TERITORY_ID LIKE '%'||:territoryId ||'%'
+GROUP BY to_char(ba.TARGET_DATE,'dd-mm-yyyy')
+
+)
+
+SELECT  t.numberOfSalesTarget, 
+        t.numMariseTarget,
+        t.numMariseTargetRegular,
+        t.numMariseTargetmmt as numMariseTargetMmt,
+        t.numRallyTarget,
+        t.numSunmoonTarget, 
+        t.samplingStickAllowted,
+        t.packetSalesTarget,
+        t.packetMariseTarget,
+        t.packetRallyTarget,
+        t.packetSunmoonTarget,
+        a.numberOfSalesContacted,
+        a.numMariseContacted,
+        a.numMariseContactedMmt,
+        a.numMariseContactedRegular,
+        a.numRallyContacted,
+        a.numSunmoonContacted,
+        a.typeOfContactNew,
+        a.typeOfContactRepeat,
+        a.mariseNew,
+        a.mariseRepeat,
+        a.mariseNewMmt,
+        a.mariseRepeatMmt,
+        a.mariseNewRegular,
+        a.mariseRepeatRegular,
+        a.rallyNew,
+        a.rallyRepeat,
+        a.sunmoonNew,
+        a.sunmoonRepeat,
+        a.contactedConsumerBrandDerby,
+        a.contactedConsumerBrandPilot,
+        a.contactedConsumerBrandHw,
+        a.contactedConsumerBrandSheikh,
+        a.contactedConsumerBrandRoyals,
+        a.contactedConsumerBrandK2,
+        a.contactedConsumerBrandNavy,
+        a.contactedConsumerBrandReal,
+        a.contactedConsumerBrandStar,
+        a.contactedConsumerBrandGoldleaf,
+        a.contactedConsumerBrandLs,
+        a.samplingStickUsed,
+        a.trialOutlet,
+        a.numberOfSwappingConsumer,
+        a.numberOfSwappingStick,
+        a.packetSalesAchieved,
+        a.packetMariseAchieved,
+        a.pacSalesMmt,
+        a.pacSalesRegular,
+        a.packetRallyAchieved,
+        a.packetSunmoonAchieved,
+        a.visitedOutlet,
+        gc.giftCnt matchGift
+FROM    target t
+LEFT    JOIN achievement a
+        ON t.tarDate=a.tarDate
+LEFT    JOIN giftCount gc
+        ON t.tarDate=gc.tarDate

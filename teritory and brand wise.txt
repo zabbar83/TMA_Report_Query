@@ -1,0 +1,216 @@
+
+WITH present as(
+-- division wise presentActive count start
+SELECT  territory_id,
+        territory_name,
+        NVL(SUM(tmsPresentCount),0) tms,
+        NVL(SUM(tmrPresentCount),0) tmr    
+FROM    (
+SELECT  
+        t.teritory_name territory_name,
+        t.id territory_id,
+        '0' tmoPresentCount,
+        sum(CASE WHEN r.role = 'TMS' THEN 1 ELSE 0 END) tmsPresentCount,
+        sum(CASE WHEN r.role = 'TMR' THEN 1 ELSE 0 END) tmrPresentCount
+FROM    bruser_teritory but
+JOIN    bruser_attendance bua
+        ON but.bruser_id = bua.br_user_user_id
+        --AND bua.attendance_date = to_date(to_date(:targetDate, 'dd-mm-yy'))
+        AND to_date(TO_CHAR(bua.attendance_date, 'dd-mm-yyyy'), 'dd-mm-yyyy') BETWEEN to_date(:fromDate, 'dd-mm-yyyy')  AND to_date(:toDate, 'dd-mm-yyyy')
+        AND to_date(bua.attendance_date, 'dd-mm-yy') BETWEEN to_date(but.ed, 'dd-mm-yy') AND to_date(but.td, 'dd-mm-yy')
+--LEFT    JOIN bractivity ba 
+        --ON bua.br_user_user_id=ba.br_user_id
+        --AND bua.attendance_date = ba.target_date
+JOIN    teritory t
+        ON but.teritory_id = t.id
+JOIN    teritory d
+        ON t.parent_id = d.id
+JOIN    bruser_roles bur
+        ON bua.br_user_user_id = bur.bruser_user_id
+JOIN    role r
+        ON bur.roles_id = r.id
+GROUP   BY t.teritory_name,t.id, r.role)
+GROUP   BY territory_id, territory_name
+),
+target as (
+SELECT  t.id territory_id,t.teritory_name territory_name,
+        --to_char(ab.TARGET_DATE,'dd-mm-yyyy') tarDate,
+        sum(case when ab.product_id in(4,23) THEN ab.CONTACT_TARGET else 0 end) mariseSalesTarget,
+        sum(case when ab.product_id in(16) THEN ab.CONTACT_TARGET else 0 end) sunmoonSalesTarget,
+        sum(case when ab.product_id in(1) THEN ab.CONTACT_TARGET else 0 end) rallySalesTarget,
+        sum(case when ab.product_id in(1,4,16,23) THEN ab.CONTACT_TARGET else 0 end) totalSalesTarget,
+        
+        NVL(sum(case when ab.product_id in(4,23) THEN ab.FREE_SAMPLING else 0 end),0) mariseSamplingAll,
+        NVL(sum(case when ab.product_id in(16) THEN ab.FREE_SAMPLING else 0 end),0)sunmoonSamplingAll,
+        NVL(sum(case when ab.product_id in(1) THEN ab.FREE_SAMPLING else 0 end),0)rallySamplingAll,
+        NVL(sum(case when ab.product_id in(1,4,16,23) THEN ab.FREE_SAMPLING else 0 end),0)totalSamplingAll,
+        
+        NVL(sum(case when ab.product_id in(4,23) THEN ab.VAO_SALES_TARGET else 0 end),0) mariseVaoAll,
+        NVL(sum(case when ab.product_id in(16) THEN ab.VAO_SALES_TARGET else 0 end),0)sunmoonVaoAll,
+        NVL(sum(case when ab.product_id in(1) THEN ab.VAO_SALES_TARGET else 0 end),0)rallyVaoAll,
+        NVL(sum(case when ab.product_id in(1,4,16,23) THEN ab.VAO_SALES_TARGET else 0 end),0)totalVaoAll,
+        
+        NVL(sum(case when ab.product_id in(4,23) THEN ab.BUNDLE_SALES_TARGET else 0 end),0) mariseBundleAll,
+        NVL(sum(case when ab.product_id in(16) THEN ab.BUNDLE_SALES_TARGET else 0 end),0)sunmoonBundleAll,
+        NVL(sum(case when ab.product_id in(1) THEN ab.BUNDLE_SALES_TARGET else 0 end),0)rallyBundleAll,
+        NVL(sum(case when ab.product_id in(1,4,16,23) THEN ab.BUNDLE_SALES_TARGET else 0 end),0)totalBundleAll,
+        
+        NVL(sum(case when ab.product_id in(4,23) THEN ab.PACKET_SALES_TARGET else 0 end),0) marisePackAll,
+        NVL(sum(case when ab.product_id in(16) THEN ab.PACKET_SALES_TARGET else 0 end),0)sunmoonPackAll,
+        NVL(sum(case when ab.product_id in(1) THEN ab.PACKET_SALES_TARGET else 0 end),0)rallyPackAll,
+        NVL(sum(case when ab.product_id in(1,4,16,23) THEN ab.PACKET_SALES_TARGET else 0 end),0)totalPackAll
+
+FROM    ASSIGN_BRAND ab
+JOIN    BRUSER_ATTENDANCE ba 
+        ON ba.BR_TEAM_TEAM_ID = ab.BR_TEAM_ID 
+        AND ab.TARGET_DATE = ba.ATTENDANCE_DATE 
+JOIN    bruser_teritory but 
+        ON ba.br_user_user_id = but.BRUSER_ID
+        AND ba.attendance_date between but.ed and but.td
+JOIN    bruser_roles bur ON ba.br_user_user_id = bur.bruser_user_id
+JOIN    TERITORY t 
+        ON t.ID = ab.TERITORY_ID 
+JOIN    TERITORY d 
+        ON t.PARENT_ID = d.ID
+WHERE   to_date(TO_CHAR(ba.ATTENDANCE_DATE_TIME, 'dd-mm-yyyy'), 'dd-mm-yyyy') BETWEEN to_date(:fromDate, 'dd-mm-yyyy')  AND to_date(:toDate, 'dd-mm-yyyy')
+and     to_date(TO_CHAR(ab.target_date, 'dd-mm-yyyy'), 'dd-mm-yyyy') BETWEEN to_date(:fromDate, 'dd-mm-yyyy')  AND to_date(:toDate, 'dd-mm-yyyy')
+and     bur.roles_id = 12
+AND     d.ID LIKE '%'||:divisionId ||'%'
+AND     t.ID LIKE '%'||:territoryId ||'%'
+GROUP   BY t.id,t.teritory_name
+--,to_char(ab.TARGET_DATE,'dd-mm-yyyy')
+),
+allocation as
+(
+SELECT TERRITORY_ID,
+teritory_name,
+sum(tmoAllocation) tmoAllocation,
+sum(tmsAllocation) tmsAllocation,
+sum(tmrAllocation) tmrAllocation
+From
+(   SELECT pap.TERRITORY_ID,
+           t.teritory_name,
+    TO_CHAR(apa.TARGET_DATE , 'dd-mm-yyyy'),
+    sum(CASE WHEN pa.ROLE_ID = 10 THEN pa.ALLOCATION END) tmoAllocation,
+    sum(CASE WHEN pa.ROLE_ID = 11 THEN pa.ALLOCATION END) tmsAllocation,
+    sum(CASE WHEN pa.ROLE_ID = 12 THEN pa.ALLOCATION END) tmrAllocation
+    FROM ASSIGN_POSITION_ALLOCATION apa 
+    JOIN POSITION_ALLOCATION_POLICY pap ON apa.POSITION_ALLOCATION_POLICY_ID = pap.ID  
+    JOIN POSITION_ALLOCATION pa ON pa.POSITION_ALLOCATION_POLICY_ID = pap.ID
+    JOIN TERITORY t ON pap.territory_id=t.id
+    WHERE to_date(TO_CHAR(apa.TARGET_DATE , 'dd-mm-yyyy'), 'dd-mm-yyyy') 
+    BETWEEN to_date(:fromDate, 'dd-mm-yyyy') AND to_date(:toDate, 'dd-mm-yyyy')
+    GROUP BY pap.TERRITORY_ID,t.teritory_name, TO_CHAR(apa.TARGET_DATE , 'dd-mm-yyyy'))
+    GROUP BY TERRITORY_ID,TERITORY_NAME
+),
+
+activity as 
+(
+select  vter.teritory_id  as territory_Id,
+        vter.teritory_name territory_Name,
+        count(distinct bract.BR_TEAM_TEAM_ID) teamCount,
+        count(distinct bract.BR_user_ID) tmrActiveCount,
+        sum(case
+            when (bract.contact_module is not null and
+            (bract.contact_module = 'RALLY' or bract.contact_module = 'RALLY_RACER'))
+            OR bract.offered_brand in (1, 2, 11, 12, 13, 14) 
+        then 1 else 0 end)    total_rally_activity,
+        sum(case when (bract.contact_module is not null 
+            and bract.contact_module IN ('MARISE','MBD_REGULAR','MBD_MAGIC'))
+            or bract.offered_brand in (4,5,22,23) 
+        then 1 else 0 end) total_marise_activity,
+        sum(case
+        when (bract.contact_module is not null 
+            and bract.contact_module = 'SUN_MOON') then 1
+        else 0 end) total_sunmoon_activity,
+            count(distinct bract.id) as total_activity,
+            sum(CASE WHEN bract.OFFERED_BRAND IN (11, 12, 13, 14, 1, 2) and bract.SAMPLING_NO > 0 then 1 ELSE 0 END)  rallyTotalSampling,
+            sum(case when bract.OFFERED_BRAND in (4, 5,22,23) and bract.SAMPLING_NO > 0 then 1 ELSE 0 END) MariseTotalSampling,
+            sum(CASE WHEN bract.OFFERED_BRAND IN (16, 17, 18, 19, 20, 21) and bract.SAMPLING_NO > 0 then 1 ELSE 0 END) sunmoonTotalSampling,
+            sum(CASE WHEN bract.OFFERED_BRAND IN (16, 17, 18, 19, 20, 21,11, 12, 13, 14, 1, 2,4, 5,22,23) and bract.SAMPLING_NO > 0 then 1 ELSE 0 END) totalSampling,
+            
+            sum(CASE WHEN bract.VAO_SALES_BRAND IN (11, 12, 13, 14, 1, 2) and bract.VAO_SALES_PACK > 0 then 1 ELSE 0 END)  rallyTotalVao,
+            sum(case when bract.VAO_SALES_BRAND in (4, 5,22,23) and bract.VAO_SALES_PACK > 0 then 1 ELSE 0 END) MariseTotalVao,
+            sum(CASE WHEN bract.VAO_SALES_BRAND IN (16, 17, 18, 19, 20, 21) and bract.VAO_SALES_PACK > 0 then 1 ELSE 0 END) sunmoonTotalVao,
+            sum(CASE WHEN bract.OFFERED_BRAND IN (16, 17, 18, 19, 20, 21,11, 12, 13, 14, 1, 2,4, 5,22,23) and bract.VAO_SALES_PACK > 0 then 1 ELSE 0 END)totalVao,
+            
+            sum(CASE WHEN bract.BUNDLE_PRODUCT_ID IN (11, 12, 13, 14, 1, 2) and bract.BUNDLE_PRODUCT_QTY > 0 then 1 ELSE 0 END)  rallyTotalBundle,
+            sum(case when bract.BUNDLE_PRODUCT_ID in (4, 5,22,23) and bract.BUNDLE_PRODUCT_QTY > 0 then 1 ELSE 0 END) mariseTotalBundle,
+            sum(CASE WHEN bract.BUNDLE_PRODUCT_ID IN (16, 17, 18, 19, 20, 21) and bract.BUNDLE_PRODUCT_QTY > 0 then 1 ELSE 0 END) sunmoonTotalBundle,
+            sum(CASE WHEN bract.OFFERED_BRAND IN (16, 17, 18, 19, 20, 21,11, 12, 13, 14, 1, 2,4, 5,22,23) and bract.BUNDLE_PRODUCT_QTY > 0 then 1 ELSE 0 END)totalBundle,
+            
+            sum(CASE WHEN bract.PACKET_SALES_BRAND IN (11, 12, 13, 14, 1, 2) and bract.SALES_PACK_QTY > 0 then 1 ELSE 0 END)  rallyTotalPacket,
+            sum(case when bract.PACKET_SALES_BRAND in (4, 5,22,23) and bract.SALES_PACK_QTY > 0 then 1 ELSE 0 END) MariseTotalPacket,
+            sum(CASE WHEN bract.PACKET_SALES_BRAND IN (16, 17, 18, 19, 20, 21) and bract.SALES_PACK_QTY > 0 then 1 ELSE 0 END) sunmoonTotalPacket,
+            sum(CASE WHEN bract.OFFERED_BRAND IN (16, 17, 18, 19, 20, 21,11, 12, 13, 14, 1, 2,4, 5,22,23) and bract.SALES_PACK_QTY > 0 then 1 ELSE 0 END)totalPacket
+            
+            FROM v_teritory_all vter 
+            LEFT JOIN (SELECT  * from (SELECT  * FROM BRACTIVITY UNION  SELECT * FROM BRACTIVITY_OLD) 
+            WHERE to_date(TO_CHAR(target_date, 'dd-mm-yyyy'), 'dd-mm-yyyy') BETWEEN to_date(:fromDate, 'dd-mm-yyyy') AND to_date(:toDate, 'dd-mm-yyyy')
+            ) bract on (bract.route_id = vter.route_id)
+             WHERE vter.teritory_id LIKE '%' || :territoryId || '%' 
+             AND vter.DIVISION_ID LIKE '%' || :divisionId || '%'
+             group BY vter.teritory_id, vter.teritory_name
+             order by vter.teritory_id
+)
+
+SELECT  al.territory_Id ,
+        al.teritory_name teritoryName,
+        tmoAllocation approvedTmo,
+        tmsAllocation approvedTms,
+        tmrAllocation approvedTmr,
+        a.teamCount numberOfTeam,
+        0 "presentTmo",
+        p.tms presentTms,
+        p.tmr presentTmr,
+        a.tmrActiveCount tmrActiveCount,
+        mariseSalesTarget mariseConTarget,
+        sunmoonSalesTarget sunmoonConTarget,
+        rallySalesTarget   rallyConTarget,
+        totalSalesTarget   totalConTarget,      
+        mariseSamplingAll  mariseFreeAllotment,
+        sunmoonSamplingAll  sunmoonFreeAllotment,
+        rallySamplingAll  rallyFreeAllotment,
+        totalSamplingAll  totalFreeAllotment,       
+        mariseVaoAll   mariseVaoTarget,
+        sunmoonVaoAll  sunmoonVaoTarget,
+        rallyVaoAll    rallyVaoTarget,
+        totalVaoAll    totalVaoTarget,       
+        mariseBundleAll  mariseBundleTarget,
+        sunmoonBundleAll sunmoonBundleTarget,
+        rallyBundleAll   rallyBundleTarget,
+        totalBundleAll   totalBundleTarget,
+        marisePackAll    marisePacketTarget,
+        sunmoonPackAll   sunmoonPacketTarget,
+        rallyPackAll     rallyPacketTarget,
+        totalPackAll     totalPacketTarget,
+        total_rally_activity  rallyConContacted,
+        total_marise_activity mariseConContacted,
+        total_sunmoon_activity  sunmoonConContacted,
+        total_activity   totalConContacted,
+        rallyTotalSampling  rallyFreeUsed,
+        mariseTotalSampling mariseFreeUsed,
+        sunmoonTotalSampling sunmoonFreeUsed,
+        totalSampling  totalFreeUsed,
+        rallyTotalVao rallyVaoSales,
+        MariseTotalVao mariseVaoSales,
+        sunmoonTotalVao sunmoonVaoSales,
+        totalVao totalVaoSales,
+        rallyTotalBundle rallyBundleSales,
+        mariseTotalBundle mariseBundleSales,
+        sunmoonTotalBundle sunmoonBundleSales,
+        totalBundle totalBundleSales,
+        rallyTotalPacket rallyPacketSales,
+        MariseTotalPacket marisePacketSales,
+        sunmoonTotalPacket sunmoonPacketSales,
+        totalPacket totalPacketSales
+               
+FROM    allocation al
+JOIN 	  target t
+        ON t.territory_id=al.territory_id
+LEFT    JOIN present p
+        ON al.territory_id=p.territory_id
+LEFT    JOIN activity a
+        ON al.territory_id=a.territory_id
+
+  
