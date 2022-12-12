@@ -223,7 +223,9 @@ select  p.division_id,
         NVL(Max(msbRegularPacket),0) msbRegularPacket,
         NVL(Max(visitedOutlet),0) visitedOutlet,
         NVL(Max(giftCnt),0) matchGiftRetailer
-        
+
+        --You must press enter before running this query
+		--any place
 from    present p
 JOIN    target t
         ON p.territory_id=t.territory_id
