@@ -1,0 +1,108 @@
+select t.teritory_name             territoryName,
+       z.teritory_name             zoneName,
+       r.teritory_name             routeName,
+       c.TRADE_LICENSE_NAME        outletName,
+       c.CUSTOMER_NAME             outletOwner,
+       c.MOBILE_NO                 outletMobile,
+       ba.br_team_team_id          teamId,
+       bt.team_name                teamName,
+       bu.user_name                brUserName,
+       brep.name                   brName,
+       case
+           when brep.br_designation = 0 then 'TMR'
+           when brep.br_designation = 1 then 'TMS'
+           end                     brDesignation,
+       brep.contact_number         brMobile,
+       ba.add_date_time            addDate,
+       bc.customer_name            customerName,
+       bc.age                      customerAge,
+       bcon.contact_number         customerMobile,
+       bc.district                 district,
+       bc.thana                    thana,
+       bc.id                       brActivityConsumerId,
+       bc.customer_address         customerAddress,
+        ba.is_repeat_contact isRepeatContact,
+       case
+           when ba.using_brand = 0 then 'MARISE'
+           when ba.using_brand = 1 then 'DERBY'
+           when ba.using_brand = 2 then 'PILOT'
+           when ba.using_brand = 3 then 'HOLLYWOOD'
+           when ba.using_brand = 4 then 'SHEIKH'
+           when ba.using_brand = 5 then 'ROYALS'
+           when ba.using_brand = 6 then 'K2'
+           when ba.using_brand = 7 then 'NAVY'
+           when ba.using_brand = 8 then 'REAL'
+           when ba.using_brand = 9 then 'STAR'
+           when ba.using_brand = 10 then 'GOLD_LEAF'
+           when ba.using_brand = 11 then 'LUCKY_STRIKE'
+           end                     usingBrand,
+       p.product_name              offeredBrand,
+       p.product_id                 offeredBrandProductId,
+       ba.contact_module           contactModule,
+       case
+           when pcct.CONTACT_TYPE is null then ' '
+           else pcct.contact_type
+           end                     contactType,
+       ba.gift_qty                 giftQty,
+       nvl(ba.sampling_no, 0)      samplingNo,
+       nvl(ba.swapping_no, 0)      swappingNo,
+       --cnpack.id                     carton1Id,
+       case
+           when ppack.product_uom2 = 2 then '10s'
+           when ppack.product_uom2 = 3 then '20s'
+           else '10s'
+           end                     packSales,
+        ba.sales_pack_qty           packSalesQty,
+       case
+           when pbrnd.product_uom2 = 2 then '10s'
+           when pbrnd.product_uom2 = 3 then '20s'
+           else '10s'
+           end                     vaoPack,
+        ba.vao_sales_pack vaoPackSales,
+       NVL(ba.bundle_gift_qty, 0)  bundleGiftQty,
+        NVL(ba.bundle_product_qty,0) bundleProductQty,
+       ba.IS_CLUB_MEMBER           clubMember,
+       nvl(ba.ENTERTAINMENT_NO, 0) entertainmentNo,
+       ba.tfr tfr,
+       ba.day_tried                dayTried,
+       ba.id                       activityID
+
+FROM apptm.bractivity ba
+         JOIN apptm.teritory r
+              ON r.id = ba.route_id
+         JOIN apptm.teritory z
+              ON z.id = r.parent_id
+         JOIN apptm.teritory t
+              ON t.id = z.parent_id
+         JOIN apptm.teritory d
+              ON d.id = t.parent_id   
+         JOIN apptm.bruser bu
+              ON ba.br_user_id = bu.user_id
+         JOIN apptm.brand_representative brep
+              ON ba.br_user_id = brep.br_user_user_id
+         JOIN apptm.brteam bt
+              ON ba.br_team_team_id = bt.team_id
+         JOIN apptm.consumer c
+              ON c.id = ba.outlet_id
+         JOIN apptm.bractivity_consumer bc
+              ON ba.br_activity_consumer_id = bc.id
+         JOIN apptm.bractivity_contact bcon
+              ON bc.br_activity_contact_id = bcon.id
+         JOIN apptm.product p
+              ON ba.offered_brand = p.product_id
+         LEFT JOIN apptm.product pbrnd
+                   ON pbrnd.product_id = ba.vao_sales_brand
+         LEFT JOIN apptm.product ppack
+                   ON ppack.product_id = ba.packet_sales_brand
+         LEFT JOIN apptm.carton cn
+                   ON cn.qty2 = pbrnd.product_uom2
+         LEFT JOIN apptm.carton cnpack
+                   ON cnpack.qty2 = ppack.product_uom2
+         LEFT JOIN apptm.pcc_contact_track pcct
+                   ON ba.id = pcct.bractivity_id
+where d.id = :divisionId
+    AND (t.teritory_name LIKE '%' || :teritoryName || '%')
+  AND (bu.user_name LIKE '%' || :userName || '%')
+  AND (r.teritory_name LIKE '%' || :routeName || '%')
+  AND to_char(ba.target_date, 'dd-mm-yyyy') like '%' || :activityDate || '%'
+order by ba.id DESC
