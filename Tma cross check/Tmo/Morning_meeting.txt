@@ -1,0 +1,12 @@
+select  distinct vta.teritory_name teritoryName,
+        mi.start_time startTime,
+        mi.end_time endTime,
+        LPAD(FLOOR((TO_DATE(end_time, 'HH24:MI') - TO_DATE(start_time, 'HH24:MI')) * 24), 2, '0') 
+       || ':' || 
+       LPAD(MOD(FLOOR((TO_DATE(end_time, 'HH24:MI') - TO_DATE(start_time, 'HH24:MI')) * 24 * 60), 60), 2, '0') activityTime,
+        case when mi.MOCK_TEST_PARTICIPATION = 1 then 'Yes' else 'NO' end mockTest,
+        NVL(mi.comments,'N/A') comments
+from    v_teritory_all vta join meeting_info mi ON vta.teritory_id=mi.teritory_id
+where   to_char(mi.added_date,'dd-mm-yyyy')=:targetDate
+and     vta.teritory_id=:teritoryId
+and     mi.meeting_info='MORNING'

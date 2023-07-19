@@ -1,0 +1,31 @@
+select  br.name tmrName,
+        bc.CUSTOMER_NAME customerName,
+        bcon.contact_number contactNumber,
+        case
+               when  ba.using_brand = 0 then 'Marise'
+               when  ba.using_brand = 1 then 'Derby'
+               when  ba.using_brand = 2 then 'Pilot'
+               when  ba.using_brand = 3 then 'Hollywood'
+               when  ba.using_brand = 4 then 'Sheikh'
+               when  ba.using_brand = 5 then 'Royals'
+               when  ba.using_brand = 6 then 'K2'
+               when  ba.using_brand = 7 then 'NAVY'
+               when  ba.using_brand = 8 then 'REAL'
+               when  ba.using_brand = 9 then 'STAR'
+               when  ba.using_brand = 10 then 'GOLD LEAF'
+               when  ba.using_brand = 11 then 'LUCKY STRIKE'
+               else 'Not type found'
+            end usingBrand,
+            NVL(case when ba.IS_VAO_SALES_LIGHTER = 1 then 'Yes' 
+                 when ba.IS_VAO_SALES = 1 then 'Yes'
+                 when ba.bundle_product_qty > 0 then 'Yes' end,'No') isVaoAndBundleSales
+From    bractivity ba 
+JOIN    on_the_job_training jb ON ba.id=jb.br_activity_id
+JOIN    bractivity_consumer bc ON ba.br_activity_consumer_id=bc.id
+JOIN    bractivity_contact bcon ON bc.BR_ACTIVITY_CONTACT_ID=bcon.id
+JOIN    brand_representative br ON br.br_user_user_id=ba.br_user_id
+JOIN    v_teritory_all vta ON vta.route_id=ba.route_id
+join    product p ON p.product_id=ba.using_brand
+where   vta.division_id=:divisionId
+and     to_char(jb.added_date,'dd-mm-yyyy')=:targetDate
+and     jb.with_dtmo_user_id=:dtmoId

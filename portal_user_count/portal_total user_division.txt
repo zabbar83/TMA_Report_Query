@@ -1,0 +1,20 @@
+Select  count(DISTINCT b.user_name)totalBrUser,
+        count(DISTINCT bra.BR_USER_USER_ID) totalAttendance,
+        NVL(count(case when br.ROLES_ID=11 then bra.br_user_user_id else null end), 0) totalTms,
+        NVL(count(DISTINCT(case when br.ROLES_ID=12 then bra.br_user_user_id else null end)), 0) totalTmr,
+        NVL(count(distinct ba.br_user_id),0) performUser
+From    bruser b
+LEFT    JOIN bruser_attendance bra
+        ON b.user_id = bra.br_user_user_id
+AND     to_date(bra.ATTENDANCE_DATE,'dd-MON-yy')=to_date(sysdate,'dd-MON-yy')
+LEFT    JOIN bractivity ba
+        ON bra.br_user_user_id = ba.br_user_id
+AND     ba.target_date = bra.ATTENDANCE_DATE
+LEFT    JOIN    bruser_roles br
+        ON bra.br_user_user_id = br.BRUSER_USER_ID
+JOIN    teritory t
+        ON t.id = b.teritory_id
+JOIN    teritory d
+        ON d.id = t.parent_id
+where   d.id = :divisionId
+and     b.IS_ACCOUNT_NON_EXPIRED = 1

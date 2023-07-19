@@ -1,0 +1,59 @@
+with total as (
+SELECT  distinct  vta.teritory_id,
+        vta.teritory_name,
+        br.user_id,
+        br.user_name,
+        brep.name
+FROM    v_teritory_all vta JOIN bruser br ON vta.teritory_id=br.teritory_id
+JOIN    brand_representative brep ON br.user_id=brep.br_user_user_id
+where   vta.division_id=:divisionId
+and     br.IS_ACCOUNT_NON_EXPIRED=1
+and     user_name like 'S%'
+),
+cr as(select  distinct vta.teritory_id,cca.checked_by_br_user
+from    cross_check_activity cca
+JOIN    bractivity ba ON cca.br_activity_id=ba.id
+JOIN    v_teritory_all vta ON vta.route_id=ba.route_id
+where   to_char(cca.added_date,'dd-mm-yyyy')=:targetDate
+and     vta.division_id=:divisionId
+and     cca.checked_by_br_user is not null
+
+),
+meetingInfo as (select  a.teritory_id,mt.MOCK_TEST_PARTICIPATION
+from(select  distinct vta.teritory_id
+from    cross_check_activity cca
+JOIN    bractivity ba ON cca.br_activity_id=ba.id
+JOIN    v_teritory_all vta ON vta.route_id=ba.route_id
+where   to_char(cca.added_date,'dd-mm-yyyy')=:targetDate
+and     vta.division_id=:divisionId
+and     cca.checked_by_br_user is not null)a
+LEFT    JOIN meeting_info mt ON mt.teritory_id=a.teritory_id
+and     to_char(mt.added_date,'dd-mm-yyyy')=:targetDate
+and     mt.MEETING_INFO='MORNING'
+),
+tourPlan as (select  distinct vta.teritory_id,tp.BR_USER_USER_ID,tp.IS_TOUR_PLAN_VISIT
+from    tour_plan_visit_track tp 
+JOIN    bruser br ON tp.br_user_user_id=br.user_id
+JOIN    v_teritory_all vta on vta.teritory_id=br.teritory_id
+where   to_char(tp.added_date,'dd-mm-yyyy')=:targetDate
+and     vta.division_id=:divisionId
+)
+
+select  t.teritory_id,
+        t.teritory_name teritoryName,
+        t.user_name tmsId,
+        t.name tmsName,
+        max(case when cr.checked_by_br_user is not null then 'Yes'
+             when cr.checked_by_br_user is null then 'NO'
+        end) visitTerWork,
+        max(case when tpv.IS_TOUR_PLAN_VISIT = 1 then 'Yes'
+             when tpv.IS_TOUR_PLAN_VISIT = 0 or tpv.IS_TOUR_PLAN_VISIT is null then 'NO'
+        end)tourPlan,
+         max(case when m.MOCK_TEST_PARTICIPATION =1 then 'Yes'
+               when m.MOCK_TEST_PARTICIPATION = 0 or m.MOCK_TEST_PARTICIPATION is null then 'NO'
+          end)mocTest
+from    total t left JOIN cr ON t.user_id=cr.checked_by_br_user
+Left    JOIN tourPlan tpv ON t.user_id=tpv.BR_USER_USER_ID
+Left    JOIN meetingInfo m ON t.teritory_id=m.teritory_id
+group   by t.teritory_id,t.teritory_name,t.user_name,t.name
+order   by t.teritory_id,t.user_name

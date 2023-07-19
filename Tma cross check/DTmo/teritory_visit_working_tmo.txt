@@ -1,0 +1,48 @@
+with total as (
+SELECT  distinct  vta.teritory_id,
+        vta.teritory_name
+FROM    v_teritory_all vta JOIN users ur ON vta.teritory_id=ur.teritory_id
+where   vta.division_id=:divisionId
+),
+cr as(
+select  distinct vta.teritory_id
+from    cross_check_activity cca
+JOIN    bractivity ba ON cca.br_activity_id=ba.id
+JOIN    v_teritory_all vta ON vta.route_id=ba.route_id
+JOIN    users ur ON cca.checked_by_user=ur.user_id
+where   to_char(cca.added_date,'dd-mm-yyyy')=:targetDate
+and     ur.USER_NAME like 'TMO%'
+and     vta.division_id=:divisionId
+
+),
+meetingInfo as (
+select  distinct vta.teritory_id,mi.MOCK_TEST_PARTICIPATION
+from    meeting_info mi join users u ON mi.users_user_id=u.user_id
+JOIN    v_teritory_all vta on vta.teritory_id=mi.teritory_id
+where   to_char(mi.added_date,'dd-mm-yyyy')=:targetDate
+and     u.USER_NAME like 'TMO%'
+and     vta.division_id=:divisionId
+),
+tourPlan as (select  distinct vta.teritory_id,tp.IS_TOUR_PLAN_VISIT
+from    tour_plan_visit_track tp 
+JOIN    v_teritory_all vta on vta.teritory_id=tp.teritory_id
+where   to_char(tp.added_date,'dd-mm-yyyy')=:targetDate
+and     vta.division_id=:divisionId
+)
+
+select  t.teritory_id,
+        t.teritory_name,
+        max(case when cr.teritory_id is not null then 'Yes'
+             when cr.teritory_id is null then 'NO'
+        end) visitTerWork,
+        max(case when tpv.IS_TOUR_PLAN_VISIT = 1 then 'Yes'
+             when tpv.IS_TOUR_PLAN_VISIT = 0 or tpv.IS_TOUR_PLAN_VISIT is null then 'NO'
+        end)tourPlan,
+         max(case when m.MOCK_TEST_PARTICIPATION =1 then 'Yes'
+               when m.MOCK_TEST_PARTICIPATION = 0 or m.MOCK_TEST_PARTICIPATION is null then 'NO'
+          end)mocTest
+from    total t left JOIN cr ON t.teritory_id=cr.teritory_id
+Left    JOIN meetingInfo m ON t.teritory_id=m.teritory_id
+Left    JOIN tourPlan tpv ON t.teritory_id=tpv.teritory_id
+group   by t.teritory_id,t.teritory_name
+order   by t.teritory_id

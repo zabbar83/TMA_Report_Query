@@ -1,0 +1,36 @@
+Select  vta.teritory_name teritoryName,
+        br.name tmrName,
+        bc.CUSTOMER_NAME customerName,
+        bcon.contact_number contactNumber,
+        cca.BR_ACTIVITY_ID,
+        NVL(max(case when q.id=101 and cca.answer = 0 then '❌' end) ,' ') question1na,
+        NVL(max(case when q.id=101 and cca.answer = 1 then '✔' end) ,' ') question1ha,
+        NVL(max(case when q.id=102 and cca.answer = 0 then '❌' end) ,' ') question2na,
+        NVL(max(case when q.id=102 and cca.answer = 1 then '✔' end) ,' ') question2ha,
+        NVL(max(case when q.id=103 and cca.answer = 0 then '❌' end ),' ') question3na,
+        NVL(max(case when q.id=103 and cca.answer = 1 then '✔' end) ,' ') question3ha,
+        NVL(max(case when q.id=104 and cca.answer = 0 then '❌' end ),' ') question4na,
+        NVL(max(case when q.id=104 and cca.answer = 1 then '✔' end) ,' ') question4ha,
+        NVL(max(case when q.id=105 and cca.answer = 0 then '❌' end ),' ') question5na,
+        NVL(max(case when q.id=105 and cca.answer = 1 then '✔' end) ,' ') question5ha,
+        NVL(max(case when q.id=106 and cca.answer = 0 then '❌' end ),' ') question6na,
+        NVL(max(case when q.id=106 and cca.answer = 1 then '✔' end) ,' ') question6ha,
+        NVL(max(case when q.id=107 and cca.answer = 0 then '❌' end ),' ') question7na,
+        NVL(max(case when q.id=107 and cca.answer = 1 then '✔' end) ,' ') question7ha,
+        NVL(max(case when q.id=108 and cca.answer = 0 then '❌' end ),' ') question8na,
+        NVL(max(case when q.id=108 and cca.answer = 1 then '✔' end) ,' ') question8ha,
+        NVL(max(case when q.id=109 and cca.answer = 0 then '❌' end ),' ') question9na,
+        NVL(max(case when q.id=109 and cca.answer = 1 then '✔' end) ,' ') question9ha
+From    question q
+JOIN    role_wise_question rwq ON q.id=rwq.question_id
+JOIN    cross_check_activity cca ON q.id=cca.question_id
+JOIN    bractivity ba ON ba.id=cca.br_activity_id
+JOIN    bractivity_consumer bc ON ba.br_activity_consumer_id=bc.id
+JOIN    bractivity_contact bcon ON bc.BR_ACTIVITY_CONTACT_ID=bcon.id
+JOIN    brand_representative br ON br.br_user_user_id=ba.br_user_id
+JOIN    v_teritory_all vta ON vta.route_id=ba.route_id
+where   vta.teritory_id=:territoryId
+and     vta.division_id=:divisionId
+and     to_char(cca.added_date,'dd-mm-yyyy')=:targetDate
+and     cca.checked_by_br_user=:brUser
+group   by vta.teritory_name,br.name,bc.CUSTOMER_NAME,bcon.contact_number,cca.BR_ACTIVITY_ID

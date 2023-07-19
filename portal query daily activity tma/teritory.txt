@@ -46,7 +46,8 @@ select t.teritory_name             territoryName,
        ba.gift_qty                 giftQty,
        nvl(ba.sampling_no, 0)      samplingNo,
        nvl(ba.swapping_no, 0)      swappingNo,
-       --cnpack.id                     carton1Id,
+       cnpack.id                     carton1Id,
+	ppack.product_id             packSalesId,
        case
            when ppack.product_uom2 = 2 then '10s'
            when ppack.product_uom2 = 3 then '20s'

@@ -1,0 +1,24 @@
+select  vta.teritory_id,
+        bt.team_id,
+        bt.team_name teamName,
+        tvwt.start_time activityStartTime,
+        tvwt.end_time activityEndTime,
+        --max(tvwt.end_time)- min(tvwt.start_time),
+        max(TRIM(TO_CHAR(EXTRACT(DAY FROM (tvwt.end_time - tvwt.start_time)) * 12 +
+                     EXTRACT(HOUR FROM (tvwt.end_time - tvwt.start_time)), 'FM00')) || ':' ||
+        TRIM(TO_CHAR(EXTRACT(MINUTE FROM (tvwt.end_time - tvwt.start_time)), 'FM00')) || ':' ||
+        TRIM(TO_CHAR(EXTRACT(SECOND FROM (tvwt.end_time - tvwt.start_time)), 'FM00'))) activityTime,
+        vta.teritory_name teritoryName,
+        nvl(count(ba.id),0) contact,
+        nvl(sum(ba.bundle_gift_qty),0) bundleSales
+from    team_visit_with_tmr tvwt
+JOIN    brteam bt on bt.team_id=tvwt.BR_TEAM_TEAM_ID
+and     to_char(tvwt.target_date,'dd-mm-yyyy')=:targetDate
+and     tvwt.tmo_user_id=:tmoId
+left    JOIN bractivity ba ON tvwt.BR_TEAM_TEAM_ID=ba.BR_TEAM_TEAM_ID and ba.add_date_time BETWEEN tvwt.start_time and tvwt.end_time
+left    JOIN v_teritory_all vta ON vta.route_id=ba.route_id
+group   by vta.teritory_id,vta.teritory_name,bt.team_id,bt.team_name,tvwt.start_time,tvwt.end_time
+order   by vta.teritory_id,bt.team_id
+
+-- tmoId=5
+-- date=03-05-2023

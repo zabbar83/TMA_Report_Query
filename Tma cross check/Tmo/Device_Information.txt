@@ -1,0 +1,10 @@
+select   
+        di.device_type deviceName,
+        di.total_allocation totalDevice,
+        di.good_condition valoDevice,
+        di.not_usable_condition onpojugiDevice,
+        di.broken_condition vangaDevice,
+        di.cracked_condition fataDevice
+from    device_information di 
+where   to_char(di.added_date,'dd-mm-yyyy')=:targetDate
+and     di.teritory_id=:teritoryId

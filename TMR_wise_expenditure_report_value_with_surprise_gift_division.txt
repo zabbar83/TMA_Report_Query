@@ -1,0 +1,103 @@
+SELECT division_name                  divisionName,
+       TERITORY_ID                    territoryId,
+       TERITORY_NAME                  territoryName,
+       BR_USER_ID                     brUserId,
+       USER_ID                        userId,
+       USER_NAME                      userName,
+       sum(NUMBEROFCONTACTED)         contactQuantity,
+       sum(BundlePack)                pack10s,
+       sum(totalVaoGift)              totalVaoGift,
+       sum(tShirt)                    shirt,
+       sum(lighter)                   lighter,
+       sum(cigarette)                 cigarette,
+       sum(candy)                     candy,
+       sum(VISITEDOUTLET)             visitedOutlet,
+       sum(mmtMATCHGIFTCONSUMER1)     mmtmatchGiftConsumer,
+       sum(regularMATCHGIFTCONSUMER1) regularmatchGiftConsumer,
+       sum(MATCHGIFTRETAILER)         matchGiftRetailer,
+       sum(sampling1)                 sampling,
+       sum(SWAPPING_NO)               swapping
+FROM (WITH giftCount as
+               (SELECT BR_USER_USER_ID, to_char(bg.ADD_DATE_TIME, 'dd-mm-yyyy') activityDate, count(1) giftCnt
+                FROM BRGIFT bg
+                WHERE bg.GIFT_ITEM_ID IN (11, 14)
+                  AND GIFT_QUANTITY > 0
+                GROUP BY BR_USER_USER_ID, to_char(bg.ADD_DATE_TIME, 'dd-mm-yyyy'))
+      SELECT division_name,vta.TERITORY_ID,
+             vta.TERITORY_NAME,
+             ba.BR_USER_ID,
+             to_char(ba.TARGET_DATE, 'dd-mm-yyyy') targetDate,
+             b.USER_NAME                           user_id,
+             br.NAME                               user_name,
+             count(ba.ID)                          numberOfContacted,
+             sum(ba.SALES_PACK_QTY)                packetSales,
+             sum(case
+                     when ba.contact_module IN ('SUN_MOON') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
+                     when ba.contact_module IN ('MARISE') AND ba.SALES_PACK_QTY > 0 then 1
+                     when ba.contact_module IN ('MBD_REGULAR', 'MBD_MAGIC', 'MBD_PCC') AND ba.BUNDLE_PRODUCT_QTY > 0
+                         then 1
+                     when ba.contact_module IN ('MSB_PCC') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
+                     else 0 end)                   BundlePack,
+
+             sum(case
+                     when ba.contact_module IN ('MBD_PCC') then ba.VAO_SALES_PACK
+                     else 0 end)                   VAO_SALES_PACK,
+             sum(case
+                     when ba.contact_module IN ('MBD_PCC') then ba.VAO_SALES_PACK_LIGHTER
+                     else 0 end)                   VAO_SALES_PACK_LIGHTER,
+
+             count(DISTINCT ba.OUTLET_ID)          visitedOutlet,
+             sum(CASE
+                     WHEN ba.offered_brand in (22, 23) and ba.GIFT_ITEM_ID IN (11, 14) AND ba.GIFT_QTY > 0 THEN 1
+                     ELSE 0 end)                   mmtmatchGiftConsumer1,
+             sum(CASE
+                     WHEN ba.offered_brand in (4, 5) and ba.GIFT_ITEM_ID IN (11, 14) AND ba.GIFT_QTY > 0 THEN 1
+                     WHEN ba.offered_brand in (16, 17, 18, 19, 20, 21) and ba.GIFT_ITEM_ID IN (11, 14) AND
+                          ba.GIFT_QTY > 0 THEN 1
+                     ELSE 0 end)                   RegularmatchGiftConsumer1,
+             nvl(bg.giftCnt, 0)                    matchGiftRetailer,
+             sum(ba.sampling_no)                   sampling1,
+             sum(ba.SWAPPING_NO)                   SWAPPING_NO,
+             sum(CASE
+                     WHEN gi.id IN (16, 17, 18, 19, 33)
+                         THEN vs.quantity
+                     ELSE 0
+                 END)                              totalVaoGift,
+             sum(CASE
+                     WHEN gi.id = 16
+                         THEN vs.quantity
+                     ELSE 0
+                 END)                              tShirt,
+             sum(CASE
+                     WHEN gi.id = 17
+                         THEN vs.quantity
+                     ELSE 0
+                 END)                              lighter
+              ,
+             sum(CASE
+                     WHEN gi.id = 18
+                         THEN vs.quantity
+                     ELSE 0
+                 END)                              cigarette
+              ,
+             sum(CASE
+                     WHEN gi.id = 33
+                         THEN vs.quantity
+                     ELSE 0
+                 END)                              candy
+      FROM BRACTIVITY ba
+               JOIN V_TERITORY_ALL vta ON vta.ROUTE_ID = ba.ROUTE_ID
+               JOIN BRUSER b ON b.USER_ID = ba.BR_USER_ID
+               JOIN BRAND_REPRESENTATIVE br ON b.USER_ID = br.BR_USER_USER_ID
+               LEFT JOIN giftCount bg ON bg.BR_USER_USER_ID = b.USER_ID AND to_char(ba.TARGET_DATE, 'dd-mm-yyyy') =
+                                                                            activityDate
+               Left JOIN vao_sale vs ON ba.id = vs.bractivity_id
+               LEFT JOIN gift_items gi ON vs.gift_item_id = gi.id
+      WHERE TO_DATE(to_char(ba.TARGET_DATE, 'dd-mm-yyyy'), 'dd-mm-yyyy')
+          BETWEEN TO_DATE(:fromDate, 'dd-mm-yyyy') AND TO_DATE(:toDate, 'dd-mm-yyyy')
+        AND vta.DIVISION_ID = :divisionId
+        AND vta.TERITORY_ID LIKE '%' || :territoryId || '%'
+      GROUP BY vta.division_name,vta.TERITORY_ID, vta.TERITORY_NAME, b.USER_NAME, ba.BR_USER_ID, br.NAME, bg.giftCnt,
+               to_char(ba.TARGET_DATE, 'dd-mm-yyyy'))
+GROUP BY division_Name,TERITORY_ID, TERITORY_NAME, BR_USER_ID, USER_ID, USER_NAME
+ORDER BY TERITORY_ID, BR_USER_ID

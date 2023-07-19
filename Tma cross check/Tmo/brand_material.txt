@@ -1,0 +1,8 @@
+select  rank () over (order by bmi.brand_material)sl,
+        bmi.brand_material brandMetarial,
+        GOOD_CONDITION goodCondition,
+        NOT_USABLE_CONDITION notUsable,
+        TOTAL_STOCK totalStock
+from    brand_material_inventory bmi 
+where   to_char(bmi.added_date,'dd-mm-yyyy')=:targetDate
+and     bmi.teritory_id=:teritoryId

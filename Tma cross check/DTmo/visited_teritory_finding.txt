@@ -1,0 +1,8 @@
+select  t.id teritoryId,
+        t.teritory_name teritoryName,
+        vtf.comments comments
+from    visited_territory_finding vtf
+JOIN    teritory t ON vtf.teritory_id=t.id
+where   to_char(vtf.added_date,'dd-mm-yyyy')=:targetDate
+and     vtf.division_id=:divisionId
+order   by t.id

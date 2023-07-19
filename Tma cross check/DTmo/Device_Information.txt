@@ -1,0 +1,14 @@
+select  t.id teritoryId,
+        t.teritory_name teritoryName,
+        di.device_type deviceName,
+        sum(di.total_allocation) totalDevice,
+        sum(di.good_condition) valoDevice,
+        sum(di.not_usable_condition) onpojugiDevice,
+        sum(di.broken_condition) vangaDevice,
+        sum(di.cracked_condition) fataDevice
+from    device_information di JOIN teritory t ON t.id=di.teritory_id
+JOIN    teritory d ON d.id=t.parent_id
+where   to_char(di.added_date,'dd-mm-yyyy')=:targetDate
+and     d.id=:divisionId
+GROUP   by t.id ,t.teritory_name, di.device_type
+order   by t.id

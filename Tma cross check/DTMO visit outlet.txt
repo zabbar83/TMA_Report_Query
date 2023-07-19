@@ -1,0 +1,71 @@
+with main_info as (
+Select  mi.checked_by_user user_id,
+        vta.division_name divisonName,
+        vta.teritory_id teritoryId,
+        vta.teritory_name teritoryName,
+        vta.route_id routeId,
+        vta.route_name routeName,
+        ei.emp_name empName,
+        ei.office_phone_no empNumber ,
+        ab.address_line1 clusterName ,
+        c.trade_license_name outletName,
+        c.consumer_code outletId,
+        c.customer_name retailerName,
+        c.mobile_no retailerMobileNo,
+        mi.ADDED_DATE_TIME visitTime,
+        NVL(mi.present_stock,0) presentStock,
+        NVL(mi.current_consumption,0) presentConsumption,
+        case when IS_NON_SELLING = 0 and mi.current_consumption is null then 'Yes' else ' ' end isNonSelling,
+        case when IS_NON_SELLING = 1 and mi.current_consumption is not null then 'Yes' else ' ' end outOfStock,
+        NVL(case when mi.current_consumption > 0 then mi.present_stock / mi.current_consumption else 0 end,0) ProductDepth,
+        mi.remarks
+from    consumer c
+JOIN    consumer_teritory ct ON c.id=ct.consumer_id
+JOIN    v_teritory_all vta ON vta.route_id=ct.teritory_id
+JOIN    mbd_inventory mi ON ct.consumer_id=mi.consumer_id
+JOIN    consumer_address ca  ON ca.consumer_id=ct.consumer_id
+JOIN    address_book ab ON ab.id=ca.address_id
+JOIN    users u ON u.user_id=mi.checked_by_user
+JOIN    teritory_manager tm ON tm.teritory_id=u.teritory_id
+JOIN    emp_info ei ON ei.emp_id=tm.emp_id
+where   to_char(mi.added_date,'dd-mm-yyyy')=:targetDate
+and     mi.checked_by_user=:userId
+),
+total_count as
+(
+select  checked_by_user userId,
+        count(consumer_id) visitOutlet,
+        count(case when present_stock > 0 then 1 else null end)stockFoundOutlet,
+        count(case when IS_NON_SELLING = 0 and current_consumption is null then 1 else null end) nonsaleStock,
+        count(case when IS_NON_SELLING = 1 and current_consumption is not null then 1 else null end) outOfstockCount
+from    mbd_inventory 
+where   to_char(added_date,'dd-mm-yyyy')=:targetDate
+and     checked_by_user=:userId
+group   by checked_by_user
+)
+select 
+        mai.divisonName,
+        mai.teritoryId,
+        mai.teritoryName,
+        mai.routeId,
+        mai.routeName,
+        mai.empName,
+        mai.empNumber ,
+        mai.clusterName ,
+        mai.outletName,
+        mai.outletId,
+        mai.retailerName,
+        mai.retailerMobileNo,
+        mai.visitTime,
+        mai.presentStock,
+        mai.presentConsumption,
+        mai.isNonSelling,
+        mai.outOfStock,
+        mai.ProductDepth,
+        mai.remarks,
+        toc.visitOutlet,
+        toc.stockFoundOutlet,
+        toc.nonsaleStock,
+        toc.outOfstockCount
+from    main_info mai JOIN total_count toc ON mai.user_id=toc.userId
+order   by mai.teritoryId,mai.routeId,mai.outletId
