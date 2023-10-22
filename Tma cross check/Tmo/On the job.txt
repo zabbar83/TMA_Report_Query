@@ -18,6 +18,7 @@ select  br.name tmrName,
             end usingBrnad,
             NVL(case when ba.IS_VAO_SALES_LIGHTER = 1 then 'Yes' 
                  when ba.IS_VAO_SALES = 1 then 'Yes'
+                 when vs.quantity=1 then 'Yes'
                  when ba.bundle_product_qty > 0 then 'Yes' end,'No') isVaoAndBundleSales
 From    bractivity ba 
 JOIN    on_the_job_training jb ON ba.id=jb.br_activity_id
@@ -26,6 +27,7 @@ JOIN    bractivity_contact bcon ON bc.BR_ACTIVITY_CONTACT_ID=bcon.id
 JOIN    brand_representative br ON br.br_user_user_id=ba.br_user_id
 JOIN    v_teritory_all vta ON vta.route_id=ba.route_id
 join    product p ON p.product_id=ba.using_brand
+LEFT    join vao_sale vs ON ba.id=vs.bractivity_id
 where   vta.teritory_id=:territoryId
 and     vta.division_id=:divisionId
 and     to_char(jb.added_date,'dd-mm-yyyy')=:targetDate

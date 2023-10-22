@@ -7,10 +7,10 @@ SELECT division_name                  divisionName,
        sum(NUMBEROFCONTACTED)         contactQuantity,
        sum(BundlePack)                pack10s,
        sum(totalVaoGift)              totalVaoGift,
-       sum(tShirt)                    shirt,
+       sum(Pocket_Deodorant)          pocketDeodorant,
        sum(lighter)                   lighter,
        sum(cigarette)                 cigarette,
-       sum(candy)                     candy,
+       sum(key_ring)                  keyRing,
        sum(VISITEDOUTLET)             visitedOutlet,
        sum(mmtMATCHGIFTCONSUMER1)     mmtmatchGiftConsumer,
        sum(regularMATCHGIFTCONSUMER1) regularmatchGiftConsumer,
@@ -19,7 +19,7 @@ SELECT division_name                  divisionName,
        sum(SWAPPING_NO)               swapping
 FROM (WITH giftCount as
                (SELECT BR_USER_USER_ID, to_char(bg.ADD_DATE_TIME, 'dd-mm-yyyy') activityDate, count(1) giftCnt
-                FROM BRGIFT bg
+                FROM apptm.BRGIFT bg
                 WHERE bg.GIFT_ITEM_ID IN (11, 14)
                   AND GIFT_QUANTITY > 0
                 GROUP BY BR_USER_USER_ID, to_char(bg.ADD_DATE_TIME, 'dd-mm-yyyy'))
@@ -34,16 +34,16 @@ FROM (WITH giftCount as
              sum(case
                      when ba.contact_module IN ('SUN_MOON') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
                      when ba.contact_module IN ('MARISE') AND ba.SALES_PACK_QTY > 0 then 1
-                     when ba.contact_module IN ('MBD_REGULAR', 'MBD_MAGIC', 'MBD_PCC') AND ba.BUNDLE_PRODUCT_QTY > 0
+                     when ba.contact_module IN ('MBD_PCC_2') AND ba.BUNDLE_PRODUCT_QTY > 0
                          then 1
-                     when ba.contact_module IN ('MSB_PCC') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
+                     when ba.contact_module IN ('MARISE_FS') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
                      else 0 end)                   BundlePack,
 
              sum(case
-                     when ba.contact_module IN ('MBD_PCC') then ba.VAO_SALES_PACK
+                     when ba.contact_module IN ('MBD_PCC_2') then ba.VAO_SALES_PACK
                      else 0 end)                   VAO_SALES_PACK,
              sum(case
-                     when ba.contact_module IN ('MBD_PCC') then ba.VAO_SALES_PACK_LIGHTER
+                     when ba.contact_module IN ('MBD_PCC_2') then ba.VAO_SALES_PACK_LIGHTER
                      else 0 end)                   VAO_SALES_PACK_LIGHTER,
 
              count(DISTINCT ba.OUTLET_ID)          visitedOutlet,
@@ -59,15 +59,15 @@ FROM (WITH giftCount as
              sum(ba.sampling_no)                   sampling1,
              sum(ba.SWAPPING_NO)                   SWAPPING_NO,
              sum(CASE
-                     WHEN gi.id IN (16, 17, 18, 19, 33)
+                     WHEN gi.id IN (17, 18, 34, 35)
                          THEN vs.quantity
                      ELSE 0
                  END)                              totalVaoGift,
              sum(CASE
-                     WHEN gi.id = 16
+                     WHEN gi.id = 35
                          THEN vs.quantity
                      ELSE 0
-                 END)                              tShirt,
+                 END)                              Pocket_Deodorant,
              sum(CASE
                      WHEN gi.id = 17
                          THEN vs.quantity
@@ -81,18 +81,18 @@ FROM (WITH giftCount as
                  END)                              cigarette
               ,
              sum(CASE
-                     WHEN gi.id = 33
+                     WHEN gi.id = 34
                          THEN vs.quantity
                      ELSE 0
-                 END)                              candy
-      FROM BRACTIVITY ba
-               JOIN V_TERITORY_ALL vta ON vta.ROUTE_ID = ba.ROUTE_ID
-               JOIN BRUSER b ON b.USER_ID = ba.BR_USER_ID
-               JOIN BRAND_REPRESENTATIVE br ON b.USER_ID = br.BR_USER_USER_ID
-               LEFT JOIN giftCount bg ON bg.BR_USER_USER_ID = b.USER_ID AND to_char(ba.TARGET_DATE, 'dd-mm-yyyy') =
+                 END)                              key_ring
+      FROM apptm.BRACTIVITY ba
+               JOIN apptm.V_TERITORY_ALL vta ON vta.ROUTE_ID = ba.ROUTE_ID
+               JOIN apptm.BRUSER b ON b.USER_ID = ba.BR_USER_ID
+               JOIN apptm.BRAND_REPRESENTATIVE br ON b.USER_ID = br.BR_USER_USER_ID
+               LEFT JOIN apptm.giftCount bg ON bg.BR_USER_USER_ID = b.USER_ID AND to_char(ba.TARGET_DATE, 'dd-mm-yyyy') =
                                                                             activityDate
-               Left JOIN vao_sale vs ON ba.id = vs.bractivity_id
-               LEFT JOIN gift_items gi ON vs.gift_item_id = gi.id
+               Left JOIN apptm.vao_sale vs ON ba.id = vs.bractivity_id
+               LEFT JOIN apptm.gift_items gi ON vs.gift_item_id = gi.id
       WHERE TO_DATE(to_char(ba.TARGET_DATE, 'dd-mm-yyyy'), 'dd-mm-yyyy')
           BETWEEN TO_DATE(:fromDate, 'dd-mm-yyyy') AND TO_DATE(:toDate, 'dd-mm-yyyy')
         AND vta.DIVISION_ID = :divisionId
