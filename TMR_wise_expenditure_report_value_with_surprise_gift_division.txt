@@ -32,7 +32,7 @@ FROM (WITH giftCount as
              count(ba.ID)                          numberOfContacted,
              sum(ba.SALES_PACK_QTY)                packetSales,
              sum(case
-                     when ba.contact_module IN ('SUN_MOON') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
+                     when ba.contact_module IN ('MSB_PCC_NOV_23') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
                      when ba.contact_module IN ('MARISE') AND ba.SALES_PACK_QTY > 0 then 1
                      when ba.contact_module IN ('MBD_PCC_2') AND ba.BUNDLE_PRODUCT_QTY > 0
                          then 1
@@ -59,7 +59,7 @@ FROM (WITH giftCount as
              sum(ba.sampling_no)                   sampling1,
              sum(ba.SWAPPING_NO)                   SWAPPING_NO,
              sum(CASE
-                     WHEN gi.id IN (17, 18, 34, 35)
+                     WHEN gi.id IN (17, 18, 35, 36)
                          THEN vs.quantity
                      ELSE 0
                  END)                              totalVaoGift,
@@ -81,7 +81,7 @@ FROM (WITH giftCount as
                  END)                              cigarette
               ,
              sum(CASE
-                     WHEN gi.id = 34
+                     WHEN gi.id = 36
                          THEN vs.quantity
                      ELSE 0
                  END)                              key_ring
@@ -89,12 +89,11 @@ FROM (WITH giftCount as
                JOIN apptm.V_TERITORY_ALL vta ON vta.ROUTE_ID = ba.ROUTE_ID
                JOIN apptm.BRUSER b ON b.USER_ID = ba.BR_USER_ID
                JOIN apptm.BRAND_REPRESENTATIVE br ON b.USER_ID = br.BR_USER_USER_ID
-               LEFT JOIN apptm.giftCount bg ON bg.BR_USER_USER_ID = b.USER_ID AND to_char(ba.TARGET_DATE, 'dd-mm-yyyy') =
+               LEFT JOIN giftCount bg ON bg.BR_USER_USER_ID = b.USER_ID AND to_char(ba.TARGET_DATE, 'dd-mm-yyyy') =
                                                                             activityDate
                Left JOIN apptm.vao_sale vs ON ba.id = vs.bractivity_id
                LEFT JOIN apptm.gift_items gi ON vs.gift_item_id = gi.id
-      WHERE TO_DATE(to_char(ba.TARGET_DATE, 'dd-mm-yyyy'), 'dd-mm-yyyy')
-          BETWEEN TO_DATE(:fromDate, 'dd-mm-yyyy') AND TO_DATE(:toDate, 'dd-mm-yyyy')
+      WHERE ba.TARGET_DATE BETWEEN TO_DATE(:fromDate, 'dd-mm-yyyy') AND TO_DATE(:toDate, 'dd-mm-yyyy')
         AND vta.DIVISION_ID = :divisionId
         AND vta.TERITORY_ID LIKE '%' || :territoryId || '%'
       GROUP BY vta.division_name,vta.TERITORY_ID, vta.TERITORY_NAME, b.USER_NAME, ba.BR_USER_ID, br.NAME, bg.giftCnt,
