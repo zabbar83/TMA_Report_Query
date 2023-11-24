@@ -3,16 +3,19 @@ select  bac.division_id divisionId,
         bac.teritory_id teritoryId,
         bac.teritory_name teritoryName,
         bac.route_name routeName,
-        bc.customer_name consumerName,
-        bc.customer_address consumerAddress,
-        bcon.contact_number contactNumber,
-        p.product_name reClaimBrand,
-        crs.added_date reClaimDate,
-        bac.target_date lastConDate,
-        bu.user_name tmrId,
-        brep.name tmrName,
+        bac.customer_name consumerName,
+        bac.customer_address consumerAddress,
+        bac.contact_number contactNumber,
+        bac.product_name reClaimBrand,
+        bac.added_date reClaimDate,
+        bac.LAST_ACTIVITY_DATE lastConDate,
+        bac.user_name tmrId,
+        bac.name tmrName,
         crs.RETENTION_STATUS verificationStatus,
-        crs.role verifiedBy,
+        case when crs.role = 'DIVISION_MANAGER' then 'DM'
+             when crs.role = 'TERRITORY_MANAGER' then 'TM'
+             else crs.role 
+        end verifiedBy,
         crs.CHECKED_DATE verificationDate
         
 From 
@@ -37,58 +40,34 @@ FROM
 select
         to_char (cre.added_date,'dd-MON-YY')added_date,
         NVL(to_char (crcc.CHECKED_DATE,'dd-MON-YY'),'N/A')CHECKED_DATE,
-        NVL(crcc.RETENTION_STATUS,'Not_Found')RETENTION_STATUS,
+        NVL(crcc.RETENTION_STATUS,'N/A')RETENTION_STATUS,
         NVL(to_char(crcc.CHECKED_BY_BR_USER),'N/A')CHECKED_BY_BR_USER,
         NVL(to_char(crcc.CHECKED_BY_USER),'N/A')CHECKED_BY_USER,
         cre.BR_ACTIVITY_CONSUMER_ID,
         NVL(ro.role,'N/A') role,
         cre.product_id
-from    (select * from apptm.bractivity b  union select * from apptm.bractivity_old bo) ba
-JOIN    apptm.consumer_retention cre ON ba.BR_ACTIVITY_CONSUMER_ID=cre.BR_ACTIVITY_CONSUMER_ID
+from    consumer_retention cre 
 left    JOIN apptm.consumer_retention_cross_check crcc ON cre.BR_ACTIVITY_CONSUMER_ID=crcc.BR_ACTIVITY_CONSUMER_ID
 left    JOIN apptm.bruser_roles brl ON crcc.CHECKED_BY_BR_USER=brl.bruser_user_id
 left    JOIN apptm.role ro ON ro.id=brl.roles_id
-where   ba.target_date between :fromDate and :toDate
-AND     ba.offered_brand=(CASE
-            WHEN cre.product_id = 1 THEN 2
-            WHEN cre.product_id = 11 THEN 12
-            WHEN cre.product_id = 13 THEN 14
-            WHEN cre.product_id = 4 THEN 5
-            WHEN cre.product_id = 22 THEN 23
-            WHEN cre.product_id = 16 THEN 17
-            WHEN cre.product_id = 18 THEN 19
-            WHEN cre.product_id = 20 THEN 21
-            ELSE cre.product_id
-        END)
+where   cre.LAST_ACTIVITY_DATE between to_date(:fromDate,'dd-mm-yyyy') and to_date(:toDate,'dd-mm-yyyy')
 )
 union all
 (
 select
         to_char (cre.added_date,'dd-MON-YY')added_date,
         NVL(to_char (crcc.CHECKED_DATE,'dd-MON-YY'),'N/A') CHECKED_DATE,
-        NVL(crcc.RETENTION_STATUS,'Not_Found') RETENTION_STATUS,
+        NVL(crcc.RETENTION_STATUS,'N/A') RETENTION_STATUS,
         NVL(to_char(crcc.CHECKED_BY_BR_USER),'N/A') CHECKED_BY_BR_USER,
         NVL(to_char(crcc.CHECKED_BY_USER),'N/A') CHECKED_BY_USER,
         cre.BR_ACTIVITY_CONSUMER_ID,
         NVL(r.role,'N/A') role,
         cre.product_id
-FROM    (select * from apptm.bractivity b  union select * from apptm.bractivity_old bo) ba
-JOIN    apptm.consumer_retention cre ON ba.BR_ACTIVITY_CONSUMER_ID=cre.BR_ACTIVITY_CONSUMER_ID
+FROM    consumer_retention cre
 left    JOIN apptm.consumer_retention_cross_check crcc ON cre.BR_ACTIVITY_CONSUMER_ID=crcc.BR_ACTIVITY_CONSUMER_ID
 left    JOIN apptm.users_roles ur ON crcc.CHECKED_BY_USER=ur.users_user_id
 left    JOIN apptm.role r ON r.id=ur.roles_id
-where   ba.target_date between :fromDate and :toDate
-AND     ba.offered_brand=(CASE
-            WHEN cre.product_id = 1 THEN 2
-            WHEN cre.product_id = 11 THEN 12
-            WHEN cre.product_id = 13 THEN 14
-            WHEN cre.product_id = 4 THEN 5
-            WHEN cre.product_id = 22 THEN 23
-            WHEN cre.product_id = 16 THEN 17
-            WHEN cre.product_id = 18 THEN 19
-            WHEN cre.product_id = 20 THEN 21
-            ELSE cre.product_id
-        END)
+where   cre.LAST_ACTIVITY_DATE between to_date(:fromDate,'dd-mm-yyyy') and to_date(:toDate,'dd-mm-yyyy')
 )
 ) crcc,
 (
@@ -108,53 +87,32 @@ and     RETENTION_STATUS like '' || :retentionStatus || '%'
 ) crs 
 JOIN
 (
-Select  
-        division_id,
-        division_name,
-        teritory_id,
-        teritory_name,
-        route_id,
-        route_name,
-        br_user_id,
-        br_activity_consumer_id,
-        target_date
-From 
-    (SELECT  
-        v.division_id,
-        v.division_name,
-        v.teritory_id,
-        v.teritory_name,
+SELECT  
+        v.division_id ,
+        v.division_name ,
+        v.teritory_id ,
+        v.teritory_name ,
         v.route_id,
-        v.route_name,
-        cr.br_user_user_id br_user_id,
-        ba.br_activity_consumer_id,
-        to_char(ba.target_date,'dd-MON-yy') target_date,
-        dense_rank() over( PARTITION by ba.br_activity_consumer_id order by ba.add_date_time desc) rank
-FROM    (select * from apptm.bractivity b  union select * from apptm.bractivity_old bo) ba
-JOIN    apptm.consumer_retention cr
-        on cr.br_activity_consumer_id=ba.br_activity_consumer_id
-AND     ba.target_date between :fromDate and :toDate
-AND     ba.offered_brand=(CASE
-            WHEN cr.product_id = 1 THEN 2
-            WHEN cr.product_id = 11 THEN 12
-            WHEN cr.product_id = 13 THEN 14
-            WHEN cr.product_id = 4 THEN 5
-            WHEN cr.product_id = 22 THEN 23
-            WHEN cr.product_id = 16 THEN 17
-            WHEN cr.product_id = 18 THEN 19
-            WHEN cr.product_id = 20 THEN 21
-            ELSE cr.product_id
-        END)
-JOIN    apptm.v_teritory_all v ON ba.route_id=v.route_id
-where   v.division_id like '%' || :divisionId || '%'
-AND     v.teritory_id like '%' || :teritoryId || '%'
-                )
-            where   rank=1
-            )bac
-        ON crs.br_activity_consumer_id=bac.br_activity_consumer_id
-JOIN    apptm.bractivity_consumer bc ON crs.BR_ACTIVITY_CONSUMER_ID=bc.id
+        v.route_name ,
+        cr.br_activity_consumer_id,
+        bc.CUSTOMER_NAME ,
+        bcon.contact_number ,
+        bc.CUSTOMER_ADDRESS ,
+        p.product_name ,
+        bu.user_name ,
+        brep.name ,
+        cr.added_date ,
+        cr.LAST_ACTIVITY_DATE 
+FROM    apptm.v_teritory_all v
+JOIN    apptm.consumer_retention cr ON cr.route_id=v.route_id
+JOIN    apptm.bractivity_consumer bc ON cr.br_activity_consumer_id=bc.id
 JOIN    apptm.bractivity_contact bcon ON bc.br_activity_contact_id=bcon.id
-JOIN    apptm.bruser bu ON bu.user_id=bac.br_user_id
-JOIN    apptm.brand_representative brep ON bu.user_id=brep.br_user_user_id
-JOIN    apptm.product p ON p.product_id=crs.product_id
-order   by bac.division_id ,bac.teritory_id ,crs.CHECKED_DATE ,bac.target_date ,bu.user_name
+JOIN    apptm.bruser bu ON cr.BR_USER_USER_ID=bu.user_id
+JOIN    apptm.brand_representative brep ON bu.user_id=brep.BR_USER_USER_ID
+JOIN    apptm.product p ON p.product_id=cr.product_id
+where   cr.LAST_ACTIVITY_DATE between to_date(:fromDate,'dd-mm-yyyy') and to_date(:toDate,'dd-mm-yyyy')
+AND     v.division_id like '%' || :divisionId || '%'
+AND     v.teritory_id like '%' || :teritoryId || '%'
+)bac
+ON crs.br_activity_consumer_id = bac.br_activity_consumer_id
+order   by bac.division_id ,bac.teritory_id ,bac.LAST_ACTIVITY_DATE ,bac.user_name,crs.CHECKED_DATE 

@@ -1,69 +1,28 @@
-Select  bac.division_id divisionId,
-        bac.division_name divisionName,
-        bac.teritory_id teritoryId,
-        bac.teritory_name teritoryName,
-        bac.route_name routeName,
+SELECT  
+        v.division_id divisionId,
+        v.division_name divisionName,
+        v.teritory_id teritoryId,
+        v.teritory_name teritoryName,
+        v.route_id,
+        v.route_name routeName,
+        cr.br_activity_consumer_id,
         bc.CUSTOMER_NAME consumerName,
         bcon.contact_number contactNumber,
         bc.CUSTOMER_ADDRESS consumerAddress,
-        bac.product_name reClaimBrand,
-        to_char(bac.added_date,'dd-MON-yy') reClaimDate,
-        to_char(bac.target_date,'dd-MON-yy') lastConDate,
+        p.product_name reClaimBrand,
         bu.user_name tmrId,
-        brep.name tmrName
-From 
-(
-Select  
-        division_id,
-        division_name,
-        teritory_id,
-        teritory_name,
-        route_id,
-        route_name,
-        br_user_id,
-        product_name,
-        added_date,
-        br_activity_consumer_id,
-        target_date
-From 
-    (SELECT  
-        v.division_id,
-        v.division_name,
-        v.teritory_id,
-        v.teritory_name,
-        v.route_id,
-        v.route_name,
-        cr.br_user_user_id br_user_id,
-        ba.offered_brand,
-        cr.product_id,
-        p.product_name,
-        cr.added_date,
-        ba.br_activity_consumer_id,
-        ba.target_date target_date,
-        dense_rank() over( PARTITION by ba.br_activity_consumer_id order by ba.add_date_time desc) rank
-FROM    (select * from apptm.bractivity b  union select * from apptm.bractivity_old bo) ba
-JOIN    apptm.v_teritory_all v ON ba.route_id=v.route_id
-JOIN    apptm.consumer_retention cr ON ba.br_activity_consumer_id=cr.BR_ACTIVITY_CONSUMER_ID
-AND     ba.offered_brand=(CASE
-            WHEN cr.product_id = 1 THEN 2
-            WHEN cr.product_id = 11 THEN 12
-            WHEN cr.product_id = 13 THEN 14
-            WHEN cr.product_id = 4 THEN 5
-            WHEN cr.product_id = 22 THEN 23
-            WHEN cr.product_id = 16 THEN 17
-            WHEN cr.product_id = 18 THEN 19
-            WHEN cr.product_id = 20 THEN 21
-            ELSE cr.product_id
-        END)
+        brep.name tmrName,
+        cr.added_date reClaimDate,
+        cr.LAST_ACTIVITY_DATE lastConDate
+FROM    apptm.v_teritory_all v
+JOIN    apptm.consumer_retention cr ON cr.route_id=v.route_id
+JOIN    apptm.bractivity_consumer bc ON cr.br_activity_consumer_id=bc.id
+JOIN    apptm.bractivity_contact bcon ON bc.br_activity_contact_id=bcon.id
+JOIN    apptm.bruser bu ON cr.BR_USER_USER_ID=bu.user_id
+JOIN    apptm.brand_representative brep ON bu.user_id=brep.BR_USER_USER_ID
 JOIN    apptm.product p ON p.product_id=cr.product_id
-where   cr.added_date between :fromDate and :toDate
+where   cr.added_date between to_date(:fromDate,'dd-mm-yyyy') and to_date(:toDate,'dd-mm-yyyy')
 AND     v.division_id like '%' || :divisionId || '%'
 AND     v.teritory_id like '%' || :teritoryId || '%'
-)
-where   rank=1
-) bac
-JOIN    apptm.bractivity_consumer bc ON bac.br_activity_consumer_id=bc.id
-JOIN    apptm.bractivity_contact bcon ON bc.br_activity_contact_id=bcon.id
-JOIN    apptm.bruser bu ON bac.br_user_id=bu.user_id
-JOIN    apptm.brand_representative brep ON bu.user_id=brep.BR_USER_USER_ID
-ORDER   BY bac.division_id,bac.teritory_id,bac.target_date,bac.added_date,bu.user_name
+ORDER   BY v.division_id,v.teritory_id,cr.added_date,
+        cr.LAST_ACTIVITY_DATE,bu.user_name

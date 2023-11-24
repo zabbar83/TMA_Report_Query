@@ -34,9 +34,10 @@ FROM (WITH giftCount as
              sum(case
                      when ba.contact_module IN ('MSB_PCC_NOV_23') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
                      when ba.contact_module IN ('MARISE') AND ba.SALES_PACK_QTY > 0 then 1
-                     when ba.contact_module IN ('MBD_PCC_2') AND ba.BUNDLE_PRODUCT_QTY > 0
-                         then 1
+                     when ba.contact_module IN ('MBD_PCC_2') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
                      when ba.contact_module IN ('MARISE_FS') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
+                     when ba.contact_module IN ('SUN_MOON_BRAZILIAN') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
+                     when ba.contact_module IN ('SUN_MOON_AMERICAN') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
                      else 0 end)                   BundlePack,
 
              sum(case

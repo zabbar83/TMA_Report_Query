@@ -3,24 +3,26 @@ select  bac.division_id divisionId,
         bac.teritory_id teritoryId,
         bac.teritory_name teritoryName,
         bac.route_name routeName,
-        bc.customer_name consumerName,
-        bc.customer_address consumerAddress,
-        bcon.contact_number contactNumber,
-        p.product_name reClaimBrand,
-        to_char(crs.added_date,'dd-MON-yy') reClaimDate,
-        to_char(bac.target_date,'dd-MON-yy') lastConDate,
-        bu.user_name tmrId,
-        brep.name tmrName,
+        bac.customer_name consumerName,
+        bac.customer_address consumerAddress,
+        bac.contact_number contactNumber,
+        bac.product_name reClaimBrand,
+        bac.reClaimDate reClaimDate,
+        bac.lastConDate lastConDate,
+        bac.user_name tmrId,
+        bac.name tmrName,
         crs.RETENTION_STATUS verificationStatus,
-        crs.role verifiedBy,
-        to_char(crs.CHECKED_DATE,'dd-MON-yy') verificationDate,
+        case when crs.role = 'DIVISION_MANAGER' then 'DM'
+             when crs.role = 'TERRITORY_MANAGER' then 'TM'
+             else crs.role 
+        end verifiedBy,
+        crs.CHECKED_DATE verificationDate,
         NVL(ccvs.CHECKED_STATUS,'Not_check') status ,
         NVL(ccvs.CHECKED_BY_USER_ROLE,'N/A') changeVerified,
-        crs.id crossCheckId
-        
+        crs.id crossCheckId      
 From 
 (SELECT
-        ID,
+        id,
         added_date,
         CHECKED_DATE,
         RETENTION_STATUS,
@@ -39,40 +41,39 @@ FROM
 (
 (
 select
-        crcc.ID,
-        cre.added_date,
-        crcc.CHECKED_DATE,
-        crcc.RETENTION_STATUS,
-        crcc.CHECKED_BY_BR_USER,
-        crcc.CHECKED_BY_USER,
-        crcc.BR_ACTIVITY_CONSUMER_ID,
-        ro.role,
+        crcc.id,
+        to_char(cre.added_date,'dd-MON-yy')added_date,
+        NVL(to_char (crcc.CHECKED_DATE,'dd-MON-YY'),'N/A')CHECKED_DATE,
+        NVL(crcc.RETENTION_STATUS,'N/A')RETENTION_STATUS,
+        NVL(to_char(crcc.CHECKED_BY_BR_USER),'N/A')CHECKED_BY_BR_USER,
+        NVL(to_char(crcc.CHECKED_BY_USER),'N/A')CHECKED_BY_USER,
+        cre.BR_ACTIVITY_CONSUMER_ID,
+        NVL(ro.role,'N/A') role,
         cre.product_id
 from    apptm.consumer_retention cre
-JOIN    apptm.consumer_retention_cross_check crcc ON cre.BR_ACTIVITY_CONSUMER_ID=crcc.BR_ACTIVITY_CONSUMER_ID
-JOIN    apptm.bruser br ON crcc.CHECKED_BY_BR_USER=br.user_id
-JOIN    apptm.bruser_roles brl ON br.user_id=brl.bruser_user_id
-JOIN    apptm.role ro ON ro.id=brl.roles_id
-where   cre.added_date between :fromDate and :toDate
+LEFT    JOIN apptm.consumer_retention_cross_check crcc
+        ON cre.BR_ACTIVITY_CONSUMER_ID=crcc.BR_ACTIVITY_CONSUMER_ID
+LEFT    JOIN apptm.bruser_roles brl ON crcc.CHECKED_BY_BR_USER=brl.bruser_user_id
+LEFT    JOIN apptm.role ro ON ro.id=brl.roles_id
+where   cre.added_date between to_date(:fromDate,'dd-mm-yyyy') and to_date(:toDate,'dd-mm-yyyy')
 )
 union all
 (
 select
-        crcc.ID,
-        cre.added_date,
-        crcc.CHECKED_DATE,
-        crcc.RETENTION_STATUS,
-        crcc.CHECKED_BY_BR_USER,
-        crcc.CHECKED_BY_USER,
-        crcc.BR_ACTIVITY_CONSUMER_ID,
-        r.role role,
+        crcc.id,
+        to_char(cre.added_date,'dd-MON-yy')added_date,
+        NVL(to_char (crcc.CHECKED_DATE,'dd-MON-YY'),'N/A') CHECKED_DATE,
+        NVL(crcc.RETENTION_STATUS,'N/A') RETENTION_STATUS,
+        NVL(to_char(crcc.CHECKED_BY_BR_USER),'N/A') CHECKED_BY_BR_USER,
+        NVL(to_char(crcc.CHECKED_BY_USER),'N/A') CHECKED_BY_USER,
+        cre.BR_ACTIVITY_CONSUMER_ID,
+        NVL(r.role,'N/A') role,
         cre.product_id
 FROM    apptm.consumer_retention cre
-JOIN    apptm.consumer_retention_cross_check crcc ON cre.BR_ACTIVITY_CONSUMER_ID=crcc.BR_ACTIVITY_CONSUMER_ID
-JOIN    apptm.users us ON crcc.CHECKED_BY_USER=us.user_id
-JOIN    apptm.users_roles ur ON us.user_id=ur.users_user_id
-JOIN    apptm.role r ON r.id=ur.roles_id
-where   cre.added_date between :fromDate and :toDate
+LEFT    JOIN apptm.consumer_retention_cross_check crcc ON cre.BR_ACTIVITY_CONSUMER_ID=crcc.BR_ACTIVITY_CONSUMER_ID
+LEFT    JOIN apptm.users_roles ur ON crcc.CHECKED_BY_USER=ur.users_user_id
+LEFT    JOIN apptm.role r ON r.id=ur.roles_id
+where   cre.added_date between to_date(:fromDate,'dd-mm-yyyy') and to_date(:toDate,'dd-mm-yyyy')
 )
 ) crcc,
 (
@@ -81,69 +82,43 @@ UNION   ALL
 SELECT  2 sl, 'TERRITORY_MANAGER' role FROM DUAL
 UNION   ALL
 SELECT  3 sl, 'TMS' role FROM DUAL
+UNION   ALL
+SELECT  4 sl, 'N/A' role FROM DUAL
 ) dsl
 WHERE   crcc.role = dsl.role
 )
 
 where   rnk = 1
-and     RETENTION_STATUS ='Retained'
+and     RETENTION_STATUS = 'Retained'
 ) crs 
 JOIN
 (
-Select  
-        division_id,
-        division_name,
-        teritory_id,
-        teritory_name,
-        route_id,
-        route_name,
-        br_user_id,
-        br_activity_consumer_id,
-        target_date
-From 
-    (SELECT  
-        v.division_id,
-        v.division_name,
-        v.teritory_id,
-        v.teritory_name,
+SELECT  
+        v.division_id ,
+        v.division_name ,
+        v.teritory_id ,
+        v.teritory_name ,
         v.route_id,
-        v.route_name,
-        cr.br_user_user_id br_user_id,
-        ba.br_activity_consumer_id,
-        ba.target_date target_date,
-        dense_rank() over( PARTITION by ba.br_activity_consumer_id order by ba.add_date_time desc) rank
-FROM    (select * from apptm.bractivity b  union select * from apptm.bractivity_old bo) ba
-JOIN    (select br_activity_consumer_id,br_user_user_id,product_id from apptm.consumer_retention cr where cr.added_date between :fromDate and :toDate) cr
-        on cr.br_activity_consumer_id=ba.br_activity_consumer_id
-AND     ba.offered_brand=(CASE
-            WHEN cr.product_id = 1 THEN 2
-            WHEN cr.product_id = 11 THEN 12
-            WHEN cr.product_id = 13 THEN 14
-            WHEN cr.product_id = 4 THEN 5
-            WHEN cr.product_id = 22 THEN 23
-            WHEN cr.product_id = 16 THEN 17
-            WHEN cr.product_id = 18 THEN 19
-            WHEN cr.product_id = 20 THEN 21
-            ELSE cr.product_id
-        END)
-JOIN    apptm.v_teritory_all v ON ba.route_id=v.route_id
-where   v.teritory_id IN (:teritoryId)
-AND     ba.br_activity_consumer_id in (
-            select  distinct cre.BR_ACTIVITY_CONSUMER_ID
-            from    apptm.consumer_retention cre
-            JOIN    apptm.consumer_retention_cross_check crcc 
-                    ON cre.BR_ACTIVITY_CONSUMER_ID=crcc.BR_ACTIVITY_CONSUMER_ID
-            where   cre.added_date between :fromDate and :toDate
-            and     RETENTION_STATUS ='Retained'          
-)
-                )
-            where   rank=1
-            )bac
-        ON crs.br_activity_consumer_id=bac.br_activity_consumer_id
-LEFT    JOIN apptm.bractivity_consumer bc ON crs.BR_ACTIVITY_CONSUMER_ID=bc.id
-LEFT    JOIN apptm.bractivity_contact bcon ON bc.br_activity_contact_id=bcon.id
-LEFT    JOIN apptm.bruser bu ON bu.user_id=bac.br_user_id
-LEFT    JOIN apptm.brand_representative brep ON bu.user_id=brep.br_user_user_id
-LEFT    JOIN apptm.product p ON p.product_id=crs.product_id
+        v.route_name ,
+        cr.br_activity_consumer_id,
+        bc.CUSTOMER_NAME ,
+        bcon.contact_number ,
+        bc.CUSTOMER_ADDRESS ,
+        p.product_name ,
+        bu.user_name ,
+        brep.name ,
+        cr.added_date reClaimDate,
+        LAST_ACTIVITY_DATE lastConDate
+FROM    apptm.v_teritory_all v
+JOIN    apptm.consumer_retention cr ON cr.route_id=v.route_id
+JOIN    apptm.bractivity_consumer bc ON cr.br_activity_consumer_id=bc.id
+JOIN    apptm.bractivity_contact bcon ON bc.br_activity_contact_id=bcon.id
+JOIN    apptm.bruser bu ON cr.BR_USER_USER_ID=bu.user_id
+JOIN    apptm.brand_representative brep ON bu.user_id=brep.BR_USER_USER_ID
+JOIN    apptm.product p ON p.product_id=cr.product_id
+where   cr.added_date between to_date(:fromDate,'dd-mm-yyyy') and to_date(:toDate,'dd-mm-yyyy')
+AND     v.teritory_id IN (:teritoryId)
+)bac
+ON      crs.br_activity_consumer_id = bac.br_activity_consumer_id
 LEFT    JOIN apptm.CROSS_CHECK_VERIFY_BY_SALES ccvs ON crs.id=ccvs.CON_RET_CROSS_CHE_ID
-order   by bac.division_id ,bac.teritory_id ,crs.CHECKED_DATE ,bac.target_date ,bu.user_name
+order   by bac.division_id ,bac.teritory_id ,bac.reClaimDate,bac.lastConDate ,crs.CHECKED_DATE ,bac.user_name
