@@ -1,0 +1,34 @@
+SELECT  
+        v.division_id divisionId,
+        v.division_name divisionName,
+        v.teritory_id teritoryId,
+        v.teritory_name teritoryName,
+        v.route_id,
+        v.route_name routeName,
+        cr.br_activity_consumer_id,
+        bc.CUSTOMER_NAME consumerName,
+        bcon.contact_number contactNumber,
+        bc.CUSTOMER_ADDRESS consumerAddress,
+        p.product_name reClaimBrand,
+        case when bu.user_name is not null then bu.user_name
+             when u.user_id is not null then u.user_name 
+        end tmrId,
+        case when brep.name is not null then brep.name
+             when t.teritory_name is not null then t.teritory_name
+             else 'N/A'
+        end tmrName,
+        cr.added_date reClaimDate,
+        cr.LAST_ACTIVITY_DATE lastConDate
+FROM    apptm.v_teritory_all v
+JOIN    apptm.consumer_retention cr ON cr.route_id=v.route_id
+JOIN    apptm.bractivity_consumer bc ON cr.br_activity_consumer_id=bc.id
+JOIN    apptm.bractivity_contact bcon ON bc.br_activity_contact_id=bcon.id
+left    JOIN apptm.bruser bu ON cr.BR_USER_USER_ID=bu.user_id
+left    JOIN apptm.brand_representative brep ON bu.user_id=brep.BR_USER_USER_ID
+JOIN    apptm.product p ON p.product_id=cr.product_id
+left    JOIN apptm.users u on cr.user_id=u.user_id
+left    JOIN apptm.teritory t ON u.teritory_id=t.id
+where   cr.LAST_ACTIVITY_DATE between to_date(:fromDate,'dd-mm-yyyy') and to_date(:toDate,'dd-mm-yyyy')
+AND     v.division_id like '%' || :divisionId || '%'
+AND     v.teritory_id like '%' || :teritoryId || '%'
+ORDER   BY v.division_id,v.teritory_id,cr.LAST_ACTIVITY_DATE,cr.added_date
