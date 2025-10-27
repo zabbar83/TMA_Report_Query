@@ -17,9 +17,9 @@ select  bac.division_id divisionId,
              else crs.role 
         end verifiedBy,
         crs.CHECKED_DATE verificationDate,
-        NVL(ccvs.CHECKED_STATUS,'Not_check') status ,
-        NVL(ccvs.CHECKED_BY_USER_ROLE,'N/A') changeVerified,
-        ccvs.REMARKS remarks,
+        ' ' status,
+        ' ' signature,
+        ' ' verifiedBy2,
         crs.id crossCheckId      
 From 
 (SELECT
@@ -119,7 +119,9 @@ JOIN    apptm.brand_representative brep ON bu.user_id=brep.BR_USER_USER_ID
 JOIN    apptm.product p ON p.product_id=cr.product_id
 where   cr.added_date between to_date(:fromDate,'dd-mm-yyyy') and to_date(:toDate,'dd-mm-yyyy')
 AND     v.teritory_id IN (:teritoryId)
+AND     bcon.contact_number like :contactNumber || '%'
 )bac
 ON      crs.br_activity_consumer_id = bac.br_activity_consumer_id
-JOIN    apptm.CROSS_CHECK_VERIFY_BY_SALES ccvs ON crs.id=ccvs.CON_RET_CROSS_CHE_ID
+LEFT    JOIN apptm.CROSS_CHECK_VERIFY_BY_SALES ccvs ON crs.id=ccvs.CON_RET_CROSS_CHE_ID
+where   ccvs.CON_RET_CROSS_CHE_ID is null
 order   by bac.division_id ,bac.teritory_id ,bac.reClaimDate,bac.lastConDate ,crs.CHECKED_DATE ,bac.user_name

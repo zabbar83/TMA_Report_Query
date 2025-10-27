@@ -1,0 +1,73 @@
+Select
+        dtmoId, 
+        dtmoName,
+        count(BR_ACTIVITY_ID) totalCrossCheck,
+        sum(case when contactStatusTrue = 1 then 1 else 0 end) conStatusTrue,
+        sum(case when question18_no =0 or question18_yes =1 then 1 else 0 end) vaoBundleSales,
+        sum(case when question18_yes = 1 then 1 else 0 end) vaoBundleTrue
+from 
+(Select
+                        
+                            dtmoId,
+                            NVL(dtmoName,'N/A')dtmoName,
+                            BR_ACTIVITY_ID,
+                            case when s_question12_yes=1 and s_question13_yes=1 and s_question14_yes=1 and s_question15_yes=1 and s_question16_yes=1 then 1 else null end  contactStatusTrue,
+                            case when s_question12_no =0 or s_question13_no =0 or s_question14_no =0 or s_question15_no =0 or s_question16_no =0 then 'X' else null end  contactStatusFalse,
+                            question18_no ,
+                            question18_yes ,
+                            question18_Nap 
+                    From
+                    (select
+                            
+                            uDtmo.USER_NAME dtmoId,
+                            ei.emp_name dtmoName,
+                            cca.BR_ACTIVITY_ID,
+                            max(case when q.id=12 and cca.answer = 0 then 'X' end) question12_no,
+                            max(case when q.id=12 and cca.answer = 1 then 1 end) question12_yes,
+                            max(case when q.id=13 and cca.answer = 0 then 'X' end) question13_no,
+                            max(case when q.id=13 and cca.answer = 1 then 1 end) question13_yes,
+                            max(case when q.id=14 and cca.answer = 0 then 'X' end) question14_no,
+                            max(case when q.id=14 and cca.answer = 1 then 1 end) question14_yes,
+                            max(case when q.id=15 and cca.answer = 0 then 'X' end) question15_no,
+                            max(case when q.id=15 and cca.answer = 1 then 1 end) question15_yes,
+                            max(case when q.id=16 and cca.answer = 0 then 'X' end) question16_no,
+                            max(case when q.id=16 and cca.answer = 1 then 1 end) question16_yes,
+                            max(case when q.id=17 and cca.answer = 0 then 'X' end) question17_no,
+                            max(case when q.id=17 and cca.answer = 1 then 1 end) question17_yes,
+
+                            max(case when q.id=12 and cca.answer = 0 then 0 end) s_question12_no,
+                            max(case when q.id=12 and cca.answer = 1 then 1 end) s_question12_yes,
+                            max(case when q.id=13 and cca.answer = 0 then 0 end) s_question13_no,
+                            max(case when q.id=13 and cca.answer = 1 then 1 end) s_question13_yes,
+                            max(case when q.id=14 and cca.answer = 0 then 0 end) s_question14_no,
+                            max(case when q.id=14 and cca.answer = 1 then 1 end) s_question14_yes,
+                            max(case when q.id=15 and cca.answer = 0 then 0 end) s_question15_no,
+                            max(case when q.id=15 and cca.answer = 1 then 1 end) s_question15_yes,
+                            max(case when q.id=16 and cca.answer = 0 then 0 end) s_question16_no,
+                            max(case when q.id=16 and cca.answer = 1 then 1 end) s_question16_yes,
+                            
+                            max(case when q.id=18 and cca.answer = 0 then 0 end) question18_no,
+                            max(case when q.id=18 and cca.answer = 1 then 1 end) question18_yes,
+                            max(case when q.id=18 and cca.answer is null then 'N/A' end) question18_Nap
+                            
+                    from    APPTM.cross_check_activity cca
+                    JOIN    APPTM.question q ON q.id=cca.question_id
+                    JOIN    APPTM.role_wise_question rwq ON q.id=rwq.question_id
+                    and     rwq.role_id=6
+                    and     trunc(to_date(cca.added_date,'DD-MON-YY'),'MM')=:targetMonth 
+                    JOIN    APPTM.users uDtmo ON cca.CHECKED_BY_USER=uDtmo.user_id
+                    and     uDtmo.user_name like 'DMO%'
+                    left JOIN    apptm.teritory_manager tm ON uDtmo.teritory_id=tm.teritory_id
+                    left JOIN    apptm.emp_info ei ON ei.emp_id=tm.emp_id
+                    JOIN    APPTM.bractivity b ON b.id=cca.br_activity_id
+                    JOIN    APPTM.v_teritory_all v ON b.route_id=v.route_id
+                    JOIN    APPTM.bruser bu ON b.br_user_id=bu.user_id
+                    JOIN    APPTM.bractivity_consumer bc ON b.BR_ACTIVITY_CONSUMER_ID=bc.id
+                    JOIN    APPTM.bractivity_contact bcn ON bc.BR_ACTIVITY_CONTACT_ID=bcn.id
+                    JOIN    APPTM.brand_representative bre ON bre.BR_USER_USER_ID=b.br_user_id
+                    AND     v.division_id like :divisionId || '%'
+                    Group   by uDtmo.USER_NAME,ei.emp_name,cca.BR_ACTIVITY_ID
+                    )
+)
+Group  by dtmoId, dtmoName
+Order  by dtmoId

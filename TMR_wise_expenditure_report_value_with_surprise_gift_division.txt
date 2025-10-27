@@ -38,6 +38,7 @@ FROM (WITH giftCount as
                      when ba.contact_module IN ('MARISE_FS') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
                      when ba.contact_module IN ('SUN_MOON_BRAZILIAN') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
                      when ba.contact_module IN ('SUN_MOON_AMERICAN') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
+                     when ba.contact_module IN ('BD_FCC') AND ba.BUNDLE_PRODUCT_QTY > 0 then 1
                      else 0 end)                   BundlePack,
 
              sum(case

@@ -1,0 +1,36 @@
+SELECT v.division_id                      AS divisionId, 
+                    v.DIVISION_NAME                    AS divisionName, 
+                    v.teritory_id                      AS teritoryId, 
+                    v.teritory_name                    AS teritoryName, 
+                    MAX(pa.ALLOCATION)                 AS approved, 
+                    COUNT(DISTINCT ba.br_user_user_id) AS present, 
+                    COUNT(DISTINCT bac.br_user_id)     AS activityStarted, 
+                    COUNT(DISTINCT bac.id)             AS contact,
+                    COUNT(distinct case when vs.quantity >0 then vs.bractivity_id else null end) AS vaoSales
+             FROM v_teritory_all v 
+                      LEFT JOIN 
+                  position_allocation_policy pap ON v.teritory_id = pap.territory_id 
+                      AND TO_DATE(:targetDate, 'dd-mm-yy') BETWEEN pap.ed AND pap.td 
+                      LEFT JOIN 
+                  position_allocation pa ON pa.POSITION_ALLOCATION_POLICY_ID = pap.id 
+                      JOIN 
+                  bruser bu ON bu.teritory_id = pap.territory_id 
+                      JOIN 
+                  bruser_roles brl ON brl.BRUSER_USER_ID = bu.user_id 
+                      AND brl.roles_id = 12 
+                      LEFT JOIN 
+                  bruser_attendance ba ON bu.user_id = ba.br_user_user_id 
+                      AND TO_CHAR(ba.ATTENDANCE_DATE, 'dd-mm-yy') = :targetDate 
+                      LEFT JOIN 
+                  bruser_teritory brt ON bu.user_id = brt.bruser_id 
+                      AND TO_DATE(:targetDate, 'dd-mm-yy') BETWEEN brt.ed AND brt.td 
+                      LEFT JOIN 
+                  bractivity bac ON bac.br_user_id = ba.br_user_user_id 
+                      AND ba.ATTENDANCE_DATE = bac.target_date 
+                      AND bac.target_date = TO_DATE(:targetDate, 'dd-mm-yy')
+                      LEFT JOIN 
+                  vao_sale vs ON bac.id=vs.bractivity_id
+             WHERE v.division_id LIKE :divisionId || '%' 
+             AND v.teritory_id LIKE :teritoryId || '%' 
+             GROUP BY v.division_id, v.DIVISION_NAME, v.teritory_id, v.teritory_name 
+             ORDER BY v.division_id, v.teritory_id

@@ -1,0 +1,142 @@
+Select  
+        division_id divisionId,
+        division_name divisionName,
+        teritory_id teritoryId,
+        teritory_name teritoryName,
+        tmoId,
+        NVL(tmoName,'N/A')tmoName,
+        tmrId,
+        tmrName,
+        consumerName,
+        contactNumber,
+        case when s_question12_yes=1 and s_question13_yes=1 and s_question14_yes=1 and s_question15_yes=1 and s_question16_yes=1 then 1 else null end  contactStatusTrue,
+        case when s_question12_no =0 or s_question13_no =0 or s_question14_no =0 or s_question15_no =0 or s_question16_no =0 then 'X' else null end  contactStatusFalse,
+        question12_no nameNotOk,
+        question12_yes nameOk,
+        question13_no nonSmoker,
+        question13_yes smoker,
+        question14_no tarGroupNotOk,
+        question14_yes tarGroupOk,
+        question15_no exBrandNotOk,
+        question15_yes exBrandOk,
+        question16_no dualSimNotOk,
+        question16_yes dualSimOk,
+        question17_no freeSampNotOk,
+        question17_yes freeSampOk,
+        question18_no vaoBundleNotOk,
+        question18_yes vaoBundleOk,
+        question18_Nap vaoBundleNap,
+        question19_no vaoBunGiftNotOk,
+        question19_yes vaoBunGiftOk,
+        question19_Nap vaoBunGiftNap,
+        question20_no avShowNotOk,
+        question20_yes avShowOk,
+        question21_no headPhoneNotOk,
+        question21_yes headPhoneOk,
+        question21_Nap headPhoneNap,
+        question22_no toolkitNotOk,
+        question22_yes toolkitOk,
+        question22_Nap toolkitNap,
+        question23_no brandNameNotOk,
+        question23_yes brandNameOk,
+        question24_no brandTalkNotOk,
+        question24_yes brandTalkOk,
+        question25_no onGoingNotOk,
+        question25_yes onGoingOk,
+        question26_no speFeatureNotOk,
+        question26_yes speFeatureOk,
+        case when b.status=15 then 'TRUE' else 'FRESH' end status
+From
+(select 
+        v.division_id,
+        v.division_name,
+        v.teritory_id,
+        v.teritory_name,
+        uTmo.USER_NAME tmoId,
+        ei.emp_name tmoName,
+        bu.user_name tmrId,
+        bre.name tmrName,
+        bc.CUSTOMER_NAME consumerName,
+        bcn.CONTACT_NUMBER contactNumber,
+        cca.BR_ACTIVITY_ID,
+        sum(case when cca.checked_by_br_user is not null then 1
+             when cca.checked_by_user is not null then 1 else 0 end) status,
+        max(case when q.id=12 and cca.answer = 0 then 'X' end) question12_no,
+        max(case when q.id=12 and cca.answer = 1 then 1 end) question12_yes,
+        max(case when q.id=13 and cca.answer = 0 then 'X' end) question13_no,
+        max(case when q.id=13 and cca.answer = 1 then 1 end) question13_yes,
+        max(case when q.id=14 and cca.answer = 0 then 'X' end) question14_no,
+        max(case when q.id=14 and cca.answer = 1 then 1 end) question14_yes,
+        max(case when q.id=15 and cca.answer = 0 then 'X' end) question15_no,
+        max(case when q.id=15 and cca.answer = 1 then 1 end) question15_yes,
+        max(case when q.id=16 and cca.answer = 0 then 'X' end) question16_no,
+        max(case when q.id=16 and cca.answer = 1 then 1 end) question16_yes,
+        max(case when q.id=17 and cca.answer = 0 then 'X' end) question17_no,
+        max(case when q.id=17 and cca.answer = 1 then 1 end) question17_yes,
+        max(case when q.id=18 and cca.answer = 0 then 'X' end) question18_no,
+        max(case when q.id=18 and cca.answer = 1 then 1 end) question18_yes,
+        max(case when q.id=18 and cca.answer is null then 'N/A' end) question18_Nap,
+        max(case when q.id=19 and cca.answer = 0 then 'X' end) question19_no,
+        max(case when q.id=19 and cca.answer = 1 then 1 end) question19_yes,
+        max(case when q.id=19 and cca.answer is null then 'N/A' end) question19_Nap,
+        max(case when q.id=20 and cca.answer = 0 then 'X' end) question20_no,
+        max(case when q.id=20 and cca.answer = 1 then 1 end) question20_yes,
+        max(case when q.id=21 and cca.answer = 0 then 'X' end) question21_no,
+        max(case when q.id=21 and cca.answer = 1 then 1 end) question21_yes,
+        max(case when q.id=21 and cca.answer is null then 'N/A' end) question21_Nap,
+        max(case when q.id=22 and cca.answer = 0 then 'X' end) question22_no,
+        max(case when q.id=22 and cca.answer = 1 then 1 end) question22_yes,
+        max(case when q.id=22 and cca.answer is null then 'N/A' end) question22_Nap,
+        max(case when q.id=23 and cca.answer = 0 then 'X' end) question23_no,
+        max(case when q.id=23 and cca.answer = 1 then 1 end) question23_yes,
+        max(case when q.id=24 and cca.answer = 0 then 'X' end) question24_no,
+        max(case when q.id=24 and cca.answer = 1 then 1 end) question24_yes,
+        max(case when q.id=25 and cca.answer = 0 then 'X' end) question25_no,
+        max(case when q.id=25 and cca.answer = 1 then 1 end) question25_yes,
+        max(case when q.id=26 and cca.answer = 0 then 'X' end) question26_no,
+        max(case when q.id=26 and cca.answer = 1 then 1 end) question26_yes,
+        
+        max(case when q.id=12 and cca.answer = 0 then 0 end) s_question12_no,
+        max(case when q.id=12 and cca.answer = 1 then 1 end) s_question12_yes,
+        max(case when q.id=13 and cca.answer = 0 then 0 end) s_question13_no,
+        max(case when q.id=13 and cca.answer = 1 then 1 end) s_question13_yes,
+        max(case when q.id=14 and cca.answer = 0 then 0 end) s_question14_no,
+        max(case when q.id=14 and cca.answer = 1 then 1 end) s_question14_yes,
+        max(case when q.id=15 and cca.answer = 0 then 0 end) s_question15_no,
+        max(case when q.id=15 and cca.answer = 1 then 1 end) s_question15_yes,
+        max(case when q.id=16 and cca.answer = 0 then 0 end) s_question16_no,
+        max(case when q.id=16 and cca.answer = 1 then 1 end) s_question16_yes
+from    APPTM.cross_check_activity cca
+JOIN    APPTM.question q ON q.id=cca.question_id
+JOIN    APPTM.role_wise_question rwq ON q.id=rwq.question_id 
+and     rwq.role_id=10
+and     to_char(cca.added_date,'dd-mm-yyyy')=:targetDate
+JOIN    APPTM.users uTmo ON cca.CHECKED_BY_USER=uTmo.user_id
+and     uTmo.user_name like 'TMO%'
+left JOIN    apptm.teritory_manager tm ON uTmo.teritory_id=tm.teritory_id
+left JOIN    apptm.emp_info ei ON ei.emp_id=tm.emp_id
+JOIN    APPTM.bractivity b ON b.id=cca.br_activity_id
+JOIN    APPTM.v_teritory_all v ON b.route_id=v.route_id
+JOIN    APPTM.bruser bu ON b.br_user_id=bu.user_id
+JOIN    APPTM.bractivity_consumer bc ON b.BR_ACTIVITY_CONSUMER_ID=bc.id
+JOIN    APPTM.bractivity_contact bcn ON bc.BR_ACTIVITY_CONTACT_ID=bcn.id
+JOIN    APPTM.brand_representative bre ON bre.BR_USER_USER_ID=b.br_user_id
+AND     v.division_id like :divisionId || '%'
+and     v.teritory_id like :teritoryId || '%'
+Group   by v.division_id,v.division_name,v.teritory_id,v.teritory_name,bu.user_name ,uTmo.USER_NAME,
+        ei.emp_name,bre.name ,bc.CUSTOMER_NAME ,bcn.CONTACT_NUMBER ,cca.BR_ACTIVITY_ID
+) a 
+LEFT    JOIN 
+(select  c.br_activity_id,
+        sum(case when c.checked_by_br_user is not null then 1 else 0 end) status
+from(
+select  cca.br_activity_id,
+        sum(case when cca.checked_by_user is not null then 1 else 0 end) status
+from    APPTM.cross_check_activity cca
+JOIN    APPTM.users uTmo ON cca.CHECKED_BY_USER=uTmo.user_id
+and     uTmo.user_name like 'TMO%'
+WHERE   to_char(cca.added_date,'dd-mm-yyyy')=:targetDate
+group by cca.br_activity_id)cca
+join  APPTM.cross_check_activity c on c.br_activity_id=cca.br_activity_id
+GROUP by c.br_activity_id)b on a.br_activity_id=b.br_activity_id
+order   by division_id,teritory_id

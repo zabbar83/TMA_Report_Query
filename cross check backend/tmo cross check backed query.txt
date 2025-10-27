@@ -1,0 +1,84 @@
+select b.id,bc.CUSTOMER_NAME                                  customerName,
+                   brc.CONTACT_NUMBER                                contactNumber,
+                   bc.CUSTOMER_ADDRESS                               customerAddress,
+                   b.ID                                              activityId,
+                   bc.THANA                                          thana,
+                   bc.AGE                                            age,
+                   bc.DISTRICT                                       district,
+                   case
+                       when b.USING_BRAND = 0 then 'MARISE'
+                       when b.USING_BRAND = 1 then 'DERBY'
+                       when b.USING_BRAND = 2 then 'PILOT'
+                       when b.USING_BRAND = 3 then 'HOLLYWOOD'
+                       when b.USING_BRAND = 4 then 'SHEIKH'
+                       when b.USING_BRAND = 5 then 'ROYALS'
+                       when b.USING_BRAND = 6 then 'K2'
+                       when b.USING_BRAND = 7 then 'NAVY'
+                       when b.USING_BRAND = 8 then 'REAL'
+                       when b.USING_BRAND = 9 then 'STAR'
+                       when b.USING_BRAND = 10 then 'GOLD_LEAF'
+                       when b.USING_BRAND = 11 then 'LUCKY_STRIKE'
+                       when b.USING_BRAND = 12 then 'RALLY_VERVE'
+                       when b.USING_BRAND = 13 then 'RALLY_RACER'
+                       when b.USING_BRAND = 14 then 'Marise Special Blend'
+                       when b.USING_BRAND = 15 then 'Black Diamond'
+                       end                                           usingBrand,
+                   b.SWAPPING_NO                                     swappingNo,
+                   b.SAMPLING_NO                                     samplingNo,
+                   TO_CHAR(b.ADD_DATE_TIME, 'YYYY-MM-DD HH24:MI:SS') contactDate,
+                   c.TRADE_LICENSE_NAME                              outletName,
+                   vs.QUANTITY                                       isVaoSales,
+                   b.BUNDLE_PRODUCT_QTY                              bundleProductQty,
+                   b.BUNDLE_GIFT_QTY                                 bundleGiftQty,
+                   case
+                       when offered.PRODUCT_ID = 23 then 'Black Diamond'
+                       when offered.PRODUCT_ID = 22 then 'Black Diamond'
+                       when offered.PRODUCT_ID = 11 then 'Rally Ice'
+                       when offered.PRODUCT_ID = 12 then 'Rally Bolt'
+                       when offered.PRODUCT_ID = 16 then 'Sunmoon American blend'
+                       when offered.PRODUCT_ID = 17 then 'Sunmoon American blend'
+                       when offered.PRODUCT_ID = 18 then 'Sunmoon Turkish blend'
+                       when offered.PRODUCT_ID = 19 then 'Sunmoon Turkish blend'
+                       when offered.PRODUCT_ID = 20 then 'Sunmoon Brazilian blend'
+                       when offered.PRODUCT_ID = 21 then 'Sunmoon Brazilian blend'
+                       when offered.PRODUCT_ID = 4 then 'Marise Special Blend'
+                       when offered.PRODUCT_ID = 5 then 'Marise Special Blend'
+                       when offered.PRODUCT_ID = 1 then 'Rally Verve'
+                       when offered.PRODUCT_ID = 2 then 'Rally Verve'
+                       when offered.PRODUCT_ID = 11 then 'LUCKY_STRIKE'
+                       end                                           offeredBrand
+from BRACTIVITY b
+join BRACTIVITY_CONSUMER bc on b.BR_ACTIVITY_CONSUMER_ID = bc.ID
+join BRACTIVITY_CONTACT brc on bc.BR_ACTIVITY_CONTACT_ID = brc.ID
+join PRODUCT offered on b.OFFERED_BRAND = offered.PRODUCT_ID
+left join VAO_SALE vs on b.ID = vs.BRACTIVITY_ID
+join CONSUMER c on b.OUTLET_ID = c.ID
+--JOIN cross_check_activity cc ON cc.br_activity_id=b.id
+where b.BR_USER_ID = :brUserId
+and route_id = :routeId
+AND (brc.CONTACT_NUMBER LIKE '%' || :conNumber || '%')
+and b.ID  in (select      case when s_question12_yes=1 and s_question13_yes=1 and s_question14_yes=1 and s_question15_yes=1 and s_question16_yes=1 then BR_ACTIVITY_ID else null end trueActivityId
+                from(select     cca.CHECKED_BY_BR_USER tmsId,cca.BR_ACTIVITY_ID,
+        	    max(case when q.id=12 and cca.answer = 1 then 1 end) s_question12_yes,
+        	    max(case when q.id=13 and cca.answer = 1 then 1 end) s_question13_yes,
+        	    max(case when q.id=14 and cca.answer = 1 then 1 end) s_question14_yes,
+        	    max(case when q.id=15 and cca.answer = 1 then 1 end) s_question15_yes,
+        	    max(case when q.id=16 and cca.answer = 1 then 1 end) s_question16_yes
+            From    APPTM.question q
+            JOIN    APPTM.role_wise_question rwq ON q.id=rwq.question_id 
+            and     rwq.role_id=10
+            JOIN    APPTM.cross_check_activity cca ON q.id=cca.question_id
+            and     cca.br_activity_id in (select distinct c.br_activity_id
+                    from    APPTM.cross_check_activity c
+                    JOIN    apptm.users_roles ur on c.CHECKED_BY_USER=ur.USERS_USER_ID
+                    and     ROLES_ID=7
+                    and     c.CHECKED_BY_USER is not null
+                    where   added_date BETWEEN to_date(sysdate - 7, 'dd-MON-yy') AND to_date(sysdate, 'dd-MON-yy')
+                    )
+            JOIN    APPTM.bractivity ba ON ba.id=cca.br_activity_id
+            where   cca.added_date BETWEEN to_date(sysdate - 7, 'dd-MON-yy') AND to_date(sysdate, 'dd-MON-yy')
+            and     ba.route_id=:routeId
+            group   by cca.CHECKED_BY_BR_USER,cca.BR_ACTIVITY_ID
+            )
+            )
+order by b.id

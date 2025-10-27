@@ -1,0 +1,229 @@
+select  vta.division_id divisionId,
+                        vta.division_name divisionName,
+                        vta.teritory_id teritoryId,
+                        vta.teritory_name teritoryName,
+                        vta.user_name tmsId,
+                        vta.name tmsName,
+                        NVL(vta.allocation,0) approvedTms,
+                        NVL(presentTms,0)presentTms,
+                        NVL(activityConTms,0)activityConTms,
+                        8 participationTar,
+                        NVL(participationAchieve,0)participationAch,
+                        14 crossTarget,
+                        NVL(crossAchiev,0)crossAchiev,
+                        22 totalTarget,
+                        NVL(crossAchiev,0) +
+			NVL(participationAchieve,0) totalAchieve,
+                        NVL(q.nameNotOk,0)nameNotOk,
+                        NVL(q.nameOk,0)nameOk,
+                        NVL(q.nonSmoker,0)nonSmoker,
+                        NVL(q.smoker,0)smoker,
+                        NVL(q.tarGroupNotOk,0)tarGroupNotOk,
+                        NVL(q.tarGroupOk,0)tarGroupOk,
+                        NVL(q.exBrandNotOk,0)exBrandNotOk,
+                        NVL(q.exBrandOk,0)exBrandOk,
+                        NVL(q.dualSimNotOk,0)dualSimNotOk,
+                        NVL(q.dualSimOk,0)dualSimOk,
+                        NVL(q.contactStatusTrue,0)contactStatusTrue,
+                        NVL(q.contactStatusFalse,0)contactStatusFalse,
+                        NVL(q.freeSampNotOk,0)freeSampNotOk,
+                        NVL(q.freeSampOk,0)freeSampOk,
+                        NVL(q.vaoBundleNotOk,0)vaoBundleNotOk,
+                        NVL(q.vaoBundleOk,0)vaoBundleOk,
+                        NVL(q.vaoBundleNap,0)vaoBundleNap,
+                        NVL(q.vaoBundleNotOk,0) +
+			            NVL(q.vaoBundleOk,0) vaoBundleSum,
+                        NVL(q.vaoBunGiftNotOk,0)vaoBunGiftNotOk,
+                        NVL(q.vaoBunGiftOk,0)vaoBunGiftOk,
+                        NVL(q.vaoBunGiftNap,0)vaoBunGiftNap,
+                        --NVL(q.vaoBunGiftNotOk,0)NVL(q.vaoBunGiftOk,0) vaoBunGiftSum,
+                        NVL(q.avShowNotOk,0)avShowNotOk,
+                        NVL(q.avShowOk,0)avShowOk,
+                        NVL(q.headPhoneNotOk,0)headPhoneNotOk,
+                        NVL(q.headPhoneOk,0)headPhoneOk,
+                        NVL(q.toolkitNotOk,0)toolkitNotOk,
+                        NVL(q.toolkitOk,0)toolkitOk,
+                        NVL(q.toolkitNap,0) toolkitNap,
+                        NVL(q.brandNameNotOk,0)brandNameNotOk,
+                        NVL(q.brandNameOk,0)brandNameOk,
+                        NVL(q.headPhoneNap,0) headPhoneNap,
+                        NVL(q.brandTalkNotOk,0)brandTalkNotOk,
+                        NVL(q.brandTalkOk,0)brandTalkOk,
+                        NVL(q.onGoingNotOk,0)onGoingNotOk,
+                        NVL(q.onGoingOk,0)onGoingOk,
+                        NVL(q.speFeatureNotOk,0)speFeatureNotOk,
+                        NVL(q.speFeatureOk,0)speFeatureOk,
+			NVL(q.overPhone,0) overPhone,
+			NVL(q.physical,0)physical,
+			NVL(q.overPhone,0) + NVL(q.physical,0) totalType,
+			NVL(ots.totalOutletCount,0) totalOutletCount,
+			NVL(ots.falseOutletCount,0) falseOutletCount,
+			NVL(ots.trueOutletCount,0) trueOutletCount
+                from    (select  distinct v.division_id,v.division_name,v.teritory_id,v.teritory_name,pa.allocation,b.user_id,b.user_name,br.name
+                        from    apptm.v_teritory_all v
+                        JOIN    apptm.bruser b ON v.teritory_id=b.teritory_id
+                        JOIN    apptm.bruser_roles br ON b.user_id=br.BRUSER_USER_ID
+                        and     roles_id=11
+                        and     user_name like 'S%'
+                        JOIN    apptm.brand_representative br ON b.user_id = br.br_user_user_id
+                        Left    JOIN apptm.position_allocation_policy pap ON v.teritory_id=pap.territory_id
+                        and     to_date(to_date(:targetDate, 'dd-mm-yyyy'),'dd-MON-yy') BETWEEN pap.ed and pap.td
+                        left    join apptm.position_allocation pa on pa.POSITION_ALLOCATION_POLICY_ID=pap.id
+                        and     pa.role_id=11
+                        where v.teritory_name not like 'RMP%') vta
+                left    JOIN(SELECT teritory_id,teritory_name,user_id,user_name,
+                                    count(distinct user_id) brUserCount,
+                                    count(BR_ACTIVITY_ID) crossAchiev,
+                                    count(question12_no) nameNotOk,
+                                    count(question12_yes) nameOk,
+                                    count(question13_no) nonSmoker,
+                                    count(question13_yes) smoker,
+                                    count(question14_no) tarGroupNotOk,
+                                    count(question14_yes) tarGroupOk,
+                                    count(question15_no) exBrandNotOk,
+                                    count(question15_yes) exBrandOk,
+                                    count(question16_no) dualSimNotOk,
+                                    count(question16_yes) dualSimOk,
+                                    count(case when s_question12_yes=1 and s_question13_yes=1 and s_question14_yes=1 and s_question15_yes=1 and s_question16_yes=1 then 1 else null end) contactStatusTrue,
+                                    count(case when s_question12_no =0 or s_question13_no =0 or s_question14_no =0 or s_question15_no =0 or s_question16_no =0 then 1 else null end) contactStatusFalse,
+                                    count(question17_no) freeSampNotOk,
+                                    count(question17_yes) freeSampOk,
+                                    count(question18_no) vaoBundleNotOk,
+                                    count(question18_yes) vaoBundleOk,
+                                    count(question18_Nap) vaoBundleNap,
+                                    count(question19_no) vaoBunGiftNotOk,
+                                    count(question19_yes) vaoBunGiftOk,
+                                    count(question19_Nap) vaoBunGiftNap,
+                                    count(question20_no) avShowNotOk,
+                                    count(question20_yes) avShowOk,
+                                    count(question21_no) headPhoneNotOk,
+                                    count(question21_yes) headPhoneOk,
+                                    count(question21_Nap) headPhoneNap,
+                                    count(question22_no) toolkitNotOk,
+                                    count(question22_yes) toolkitOk,
+                                    count(question22_Nap) toolkitNap,
+                                    count(question23_no) brandNameNotOk,
+                                    count(question23_yes) brandNameOk,
+                                    count(question24_no) brandTalkNotOk,
+                                    count(question24_yes) brandTalkOk,
+                                    count(question25_no) onGoingNotOk,
+                                    count(question25_yes) onGoingOk,
+                                    count(question26_no) speFeatureNotOk,
+                                    count(question26_yes) speFeatureOk,
+				count(question27_no) overPhone,
+				count(question27_yes) physical
+                            FROM
+                            (
+                            Select  vt.teritory_id,vt.teritory_name,
+                                    bu.user_id,
+                                    bu.user_name,
+                                    cca.BR_ACTIVITY_ID,
+                                    max(case when q.id=12 and cca.answer = 0 then '0' end) question12_no,
+                                    max(case when q.id=12 and cca.answer = 1 then '1' end) question12_yes,
+                                    max(case when q.id=13 and cca.answer = 0 then '0' end) question13_no,
+                                    max(case when q.id=13 and cca.answer = 1 then '1' end) question13_yes,
+                                    max(case when q.id=14 and cca.answer = 0 then '0' end) question14_no,
+                                    max(case when q.id=14 and cca.answer = 1 then '1' end) question14_yes,
+                                    max(case when q.id=15 and cca.answer = 0 then '0' end) question15_no,
+                                    max(case when q.id=15 and cca.answer = 1 then '1' end) question15_yes,
+                                    max(case when q.id=16 and cca.answer = 0 then '0' end) question16_no,
+                                    max(case when q.id=16 and cca.answer = 1 then '1' end) question16_yes,
+                                    max(case when q.id=17 and cca.answer = 0 then '0' end) question17_no,
+                                    max(case when q.id=17 and cca.answer = 1 then '1' end) question17_yes,
+                                    max(case when q.id=18 and cca.answer = 0 then '0' end) question18_no,
+                                    max(case when q.id=18 and cca.answer = 1 then '1' end) question18_yes,
+                                    max(case when q.id=18 and cca.answer is null then '2' end) question18_Nap,
+                                    max(case when q.id=19 and cca.answer = 0 then '0' end) question19_no,
+                                    max(case when q.id=19 and cca.answer = 1 then '1' end) question19_yes,
+                                    max(case when q.id=19 and cca.answer is null then '2' end) question19_Nap,
+                                    max(case when q.id=20 and cca.answer = 0 then '0' end) question20_no,
+                                    max(case when q.id=20 and cca.answer = 1 then '1' end) question20_yes,
+                                    max(case when q.id=21 and cca.answer = 0 then '0' end) question21_no,
+                                    max(case when q.id=21 and cca.answer = 1 then '1' end) question21_yes,
+                                    max(case when q.id=21 and cca.answer is null then '2' end) question21_Nap,
+                                    max(case when q.id=22 and cca.answer = 0 then '0' end) question22_no,
+                                    max(case when q.id=22 and cca.answer = 1 then '1' end) question22_yes,
+                                    max(case when q.id=22 and cca.answer is null then '2' end) question22_Nap,
+                                    max(case when q.id=23 and cca.answer = 0 then '0' end) question23_no,
+                                    max(case when q.id=23 and cca.answer = 1 then '1' end) question23_yes,
+                                    max(case when q.id=24 and cca.answer = 0 then '0' end) question24_no,
+                                    max(case when q.id=24 and cca.answer = 1 then '1' end) question24_yes,
+                                    max(case when q.id=25 and cca.answer = 0 then '0' end) question25_no,
+                                    max(case when q.id=25 and cca.answer = 1 then '1' end) question25_yes,
+                                    max(case when q.id=26 and cca.answer = 0 then '0' end) question26_no,
+                                    max(case when q.id=26 and cca.answer = 1 then '1' end) question26_yes,
+				max(case when q.id=27 and cca.answer = 0 then '0' end) question27_no,
+                                max(case when q.id=27 and cca.answer = 1 then '1' end) question27_yes,
+
+
+                            max(case when q.id=12 and cca.answer = 0 then 0 end) s_question12_no,
+                            max(case when q.id=12 and cca.answer = 1 then 1 end) s_question12_yes,
+                            max(case when q.id=13 and cca.answer = 0 then 0 end) s_question13_no,
+                            max(case when q.id=13 and cca.answer = 1 then 1 end) s_question13_yes,
+                            max(case when q.id=14 and cca.answer = 0 then 0 end) s_question14_no,
+                            max(case when q.id=14 and cca.answer = 1 then 1 end) s_question14_yes,
+                            max(case when q.id=15 and cca.answer = 0 then 0 end) s_question15_no,
+                            max(case when q.id=15 and cca.answer = 1 then 1 end) s_question15_yes,
+                            max(case when q.id=16 and cca.answer = 0 then 0 end) s_question16_no,
+                            max(case when q.id=16 and cca.answer = 1 then 1 end) s_question16_yes
+                            From    APPTM.question q
+                            JOIN    APPTM.role_wise_question rwq ON q.id=rwq.question_id
+                            and     rwq.role_id=11
+                            JOIN    APPTM.cross_check_activity cca ON q.id=cca.question_id
+                            JOIN    APPTM.bractivity ba ON ba.id=cca.br_activity_id
+                            JOIN    APPTM.v_teritory_all vt ON vt.route_id=ba.route_id
+                            JOIN    APPTM.bruser bu ON cca.checked_by_br_user = bu.user_id
+                            where   to_char(cca.added_date,'dd-mm-yyyy')=:targetDate
+                            and     vt.division_id like :divisionId || '%'
+                            and     vt.teritory_id like :teritoryId || '%'
+                            group   by vt.teritory_id,vt.teritory_name,vt.route_id,bu.user_id,bu.user_name,cca.BR_ACTIVITY_ID
+                            )
+                            GROUP   BY teritory_id,teritory_name,user_id,user_name
+                            )q ON q.user_id=vta.user_id
+                LEFT    JOIN (      select  division_id ,division_Name ,teritory_id ,teritory_name,user_id,user_name,name,
+                                    sum(presentTms) presentTms,
+                                    sum(activityConTms)activityConTms,
+                                    sum(participationTar) * 8 participationTar,
+                                    sum(participationAchieve)participationAchieve
+                            From (
+                                    select  v.division_id ,
+                                            v.division_Name ,
+                                            v.teritory_id ,
+                                            v.teritory_name ,
+                                            b.user_id,
+                                            b.user_name,
+                                            br.name,
+                                            count( distinct ba.br_user_user_id)  presentTms,
+                                            count(distinct ba.br_user_user_id) activityConTms,
+                                            count( distinct ba.br_user_user_id) participationTar,
+                                            count(distinct jb.BR_ACTIVITY_ID) participationAchieve
+                                    from    apptm.v_teritory_all v
+                                    JOIN    apptm.bruser b ON v.teritory_id=b.teritory_id
+                                    JOIN    apptm.bruser_roles brl ON brl.BRUSER_USER_ID=b.user_id
+                                    and     brl.roles_id=11
+                                    JOIN    apptm.bruser_attendance ba on b.user_id=ba.br_user_user_id
+                                    and     to_char(ba.attendance_date,'dd-mm-yyyy') =:targetDate
+                                    JOIN    apptm.brand_representative br ON b.user_id = br.br_user_user_id
+                                    LEFT    JOIN apptm.on_the_job_training jb ON b.user_id=jb.WITH_TMS_USER_ID
+                                    and     ba.attendance_date =jb.ADDED_DATE
+                                    LEFT    JOIN apptm.bractivity bac ON jb.BR_ACTIVITY_ID=bac.id
+                                    where   v.division_id like :divisionId || '%' 
+                                    and     v.teritory_id like :teritoryId || '%'
+                                    group   by v.division_id ,v.division_Name ,v.teritory_id ,v.teritory_name, b.user_id,b.user_name,br.name
+                                    )
+                            group   by division_id ,division_Name ,teritory_id ,teritory_name,user_id,user_name,name
+                            )jb ON jb.user_id=vta.user_id
+		LEFT JOIN (select  cco.checked_by_tms_user_id user_id,
+				count(distinct (case when cco.checked_by_tms_user_id is not null then bs.outlet_id else null end)) totalOutletCount,
+				count(distinct (case when cco.checked_by_tms_user_id is not null and cco.answer=0 then bs.outlet_id else null end)) falseOutletCount,
+				count(distinct (case when cco.checked_by_tms_user_id is not null and cco.answer=1 then bs.outlet_id else null end)) trueOutletCount
+				from 	apptm.broutlet_stock bs
+				JOIN	apptm.cross_check_outlet cco on bs.id=cco.broutlet_stock_id
+				and	to_char(bs.target_date,'dd-mm-yyyy')=:targetDate
+				and	
+                cco.checked_by_tms_user_id is not null
+				group   by cco.checked_by_tms_user_id
+			)ots ON ots.user_id=vta.user_id
+                where   vta.division_id like :divisionId || '%'
+                and     vta.teritory_id like :teritoryId || '%'
+                order   by vta.division_id,vta.teritory_id

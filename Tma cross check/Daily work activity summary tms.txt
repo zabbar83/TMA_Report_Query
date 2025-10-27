@@ -1,0 +1,69 @@
+SELECT
+        division_id divisionId,
+        division_name divisionName,
+        territory_id territoryId,
+        territory_name territoryName,
+        user_name,
+        tms_name tmsName,
+        COUNT(question1_no) question1na,
+        COUNT(question1_yes) question1ha,
+        COUNT(question2_no) question2na,
+        COUNT(question2_yes) question2ha,
+        COUNT(question3_no) question3na,
+        COUNT(question3_yes) question3ha,
+        COUNT(question4_no) question4na,
+        COUNT(question4_yes) question4ha,
+        COUNT(question5_no) question5na,
+        COUNT(question5_yes) question5ha,
+        COUNT(question6_no) question6na,
+        COUNT(question6_yes) question6ha,
+        COUNT(question7_no) question7na,
+        COUNT(question7_yes) question7ha,
+        COUNT(question8_no) question8na,
+        COUNT(question8_yes) question8ha,
+        COUNT(question9_no) question9na,
+        COUNT(question9_yes) question9ha
+FROM
+(
+Select
+        vta.division_id,
+        vta.division_name,
+        vta.teritory_id territory_id,
+        vta.teritory_name territory_name,
+        bu.user_name,
+        br.name tms_name,
+        cca.BR_ACTIVITY_ID,
+        max(case when q.id=1 and cca.answer = 0 then '0' end) question1_no,
+        max(case when q.id=1 and cca.answer = 1 then '1' end) question1_yes,
+        max(case when q.id=2 and cca.answer = 0 then '0' end) question2_no,
+        max(case when q.id=2 and cca.answer = 1 then '1' end) question2_yes,
+        max(case when q.id=3 and cca.answer = 0 then '0' end) question3_no,
+        max(case when q.id=3 and cca.answer = 1 then '1' end) question3_yes,
+        max(case when q.id=4 and cca.answer = 0 then '0' end) question4_no,
+        max(case when q.id=4 and cca.answer = 1 then '1' end) question4_yes,
+        max(case when q.id=5 and cca.answer = 0 then '0' end) question5_no,
+        max(case when q.id=5 and cca.answer = 1 then '1' end) question5_yes,
+        max(case when q.id=6 and cca.answer = 0 then '0' end) question6_no,
+        max(case when q.id=6 and cca.answer = 1 then '1' end) question6_yes,
+        max(case when q.id=7 and cca.answer = 0 then '0' end) question7_no,
+        max(case when q.id=7 and cca.answer = 1 then '1' end) question7_yes,
+        max(case when q.id=8 and cca.answer = 0 then '0' end) question8_no,
+        max(case when q.id=8 and cca.answer = 1 then '1' end) question8_yes,
+        max(case when q.id=9 and cca.answer = 0 then '0' end) question9_no,
+        max(case when q.id=9 and cca.answer = 1 then '1' end) question9_yes
+From    APPTM.question q
+JOIN    APPTM.role_wise_question rwq ON q.id=rwq.question_id 
+and     rwq.role_id=11
+JOIN    APPTM.cross_check_activity cca ON q.id=cca.question_id
+JOIN    APPTM.bractivity ba ON ba.id=cca.br_activity_id
+JOIN    APPTM.bruser bu ON cca.checked_by_br_user = bu.user_id
+JOIN    APPTM.brand_representative br ON bu.user_id = br.br_user_user_id
+JOIN    APPTM.v_teritory_all vta ON vta.route_id=ba.route_id
+where   vta.division_id LIKE :divisionId || '%'
+and     vta.teritory_id LIKE :territoryId || '%'
+and     to_char(cca.added_date,'dd-mm-yyyy')=:targetDate
+group   by vta.division_id,vta.division_name,vta.teritory_id,vta.teritory_name,
+        bu.user_name,br.name,cca.BR_ACTIVITY_ID
+)
+GROUP   BY division_id,division_name,territory_id,territory_name,user_name,tms_name
+ORDER   BY division_id,territory_id,user_name;

@@ -1,0 +1,149 @@
+select  divisionId,
+        divisionName,
+        teritoryId,
+        teritoryName,
+        sum(participationTarget) * 8 participationTarget,
+        sum(participationAchiev) participationAchiev,
+        sum(crossCheckTarget) * 8 crossCheckTarget,
+        NVL(sum(bb.crossAchiev),0) crossAchiev,
+        NVL(sum(aa.tmrVaoYes),0) tmrVaoYes,
+        NVL(sum(aa.tmrVaoNo),0) tmrVaoNo,
+        NVL(sum(aa.tmrBundleYes),0) tmrBundleYes,
+        NVL(sum(aa.tmrBundleNo),0) tmrBundleNo,
+        NVL(sum(vaoNo),0) vaoNo,
+        NVL(sum(vaoYes),0) vaoYes,
+        NVL(sum(vaoNap),0) vaoNap,
+        NVL(sum(bundleNo),0) bundleNo,
+        NVL(sum(bundleYes),0) bundleYes,
+        NVL(sum(bundleNap),0) bundleNap,
+        NVL(sum(sampleNo),0) sampleNo,
+        NVL(sum(sampleYes),0) sampleYes,
+        NVL(sum(sampleNap),0) sampleNap,
+        NVL(sum(avNo),0) avNo,
+        NVL(sum(avYes),0) avYes,
+        NVL(sum(avNap),0) avNap,
+        NVL(sum(doubleFilterNo),0) doubleFilterNo,
+        NVL(sum(doubleFilterYes),0) doubleFilterYes,
+        NVL(sum(doubleFilterNap),0) doubleFilterNap,
+        NVL(sum(brandNameNo),0) brandNameNo,
+        NVL(sum(brandNameYes),0) brandNameYes,
+        NVL(sum(brandNameNap),0) brandNameNap,
+        NVL(sum(wrongYes),0) wrongYes,
+        NVL(sum(contactStatusYes),0)contactStatusYes,
+        NVL(sum(contactStatusNo),0)contactStatusNo,
+        NVL(sum(doubleSimYes),0) doubleSimYes,
+        NVL(sum(participationTarget),0) * 16 totalTarget,
+        NVL(sum(participationAchiev),0) + NVL(sum(bb.crossAchiev),0) totalAchiev
+from
+(select  v.division_id divisionId,
+        v.division_Name divisionName,
+        v.teritory_id teritoryId,
+        v.teritory_name teritoryName,
+        b.user_id,
+        count( distinct ba.br_user_user_id) participationTarget ,
+        count(distinct jb.BR_ACTIVITY_ID) participationAchiev,
+        count( distinct ba.br_user_user_id) crossCheckTarget,
+        max(gv.tmrVaoYes) tmrVaoYes,
+        max(gv.tmrVaoNo) tmrVaoNo,
+        max(gv.tmrBundleYes) tmrBundleYes,
+        max(gv.tmrBundleNo) tmrBundleNo
+from    apptm.v_teritory_all v
+JOIN    apptm.bruser b ON v.teritory_id=b.teritory_id
+JOIN    apptm.bruser_roles brl ON brl.BRUSER_USER_ID=b.user_id
+and     brl.roles_id=11
+JOIN    apptm.bruser_attendance ba on b.user_id=ba.br_user_user_id
+and     to_char(ba.attendance_date,'dd-mm-yyyy') =:targetDate
+JOIN    apptm.brand_representative br ON b.user_id = br.br_user_user_id
+LEFT    JOIN apptm.on_the_job_training jb ON b.user_id=jb.WITH_TMS_USER_ID
+and     ba.attendance_date =jb.ADDED_DATE
+LEFT    JOIN apptm.bractivity bac ON jb.BR_ACTIVITY_ID=bac.id
+LEFT    JOIN (select  cca.CHECKED_BY_BR_USER CHECKED_BY_BR_USER,
+                        sum(case when bac1.bundle_gift_qty=1 then bac1.bundle_gift_qty else 0 end) tmrBundleYes,
+                        count(case when bac1.bundle_gift_qty is null then bac1.bundle_gift_qty else null end) tmrBundleNo,
+                        sum(case when vs1.quantity=1 then 1 else 0 end) tmrVaoYes,
+                        count(case when vs1.quantity is null then vs1.quantity else null end) tmrVaoNo
+                from    (select distinct CHECKED_BY_BR_USER,BR_ACTIVITY_ID from apptm.cross_check_activity where to_char(ADDED_DATE,'dd-mm-yyyy')=:targetDate
+                        and CHECKED_BY_BR_USER is not null) cca 
+                LEFT    JOIN apptm.bractivity bac1 ON bac1.id=cca.BR_ACTIVITY_ID
+                LEFT    JOIN apptm.vao_sale vs1 ON vs1.BRACTIVITY_ID=cca.BR_ACTIVITY_ID
+                group   by cca.CHECKED_BY_BR_USER)gv 
+                ON b.user_id=gv.CHECKED_BY_BR_USER
+where   v.division_id like :divisionId || '%'
+and     v.teritory_id like :teritoryId || '%'
+group   by v.division_id ,v.division_Name ,v.teritory_id ,v.teritory_name, b.user_id
+)aa
+LEFT JOIN
+(
+SELECT 
+                    user_id,
+                    count(BR_ACTIVITY_ID) crossAchiev,
+                    COUNT(question1_no) avNo,
+                    COUNT(question1_yes) avYes,
+                    count(question1_Nap) avNap,
+                    COUNT(question2_no) doubleFilterNo,
+                    COUNT(question2_yes) doubleFilterYes,
+                    count(question2_Nap) doubleFilterNap,
+                    COUNT(question4_no) brandNameNo,
+                    COUNT(question4_yes) brandNameYes,
+                    count(question4_Nap) brandNameNap,
+                    COUNT(question5_no) sampleNo,
+                    COUNT(question5_yes) sampleYes,
+                    count(question5_Nap) sampleNap,
+                    COUNT(question6_no) vaoNo,
+                    COUNT(question6_yes) vaoYes,
+                    count(question6_Nap) vaoNap,
+                    COUNT(question7_no) bundleNo,
+                    COUNT(question7_yes) bundleYes,
+                    count(question7_Nap) bundleNap,
+                    sum(case when contactStatusYes = 1 then contactStatusYes end) contactStatusYes,
+                    count(case when contactStatusYes is null then 1 else null end) contactStatusNo,
+                    COUNT(question8_yes) wrongYes,
+                    COUNT(question9_yes) doubleSimYes
+            FROM
+            (
+            Select 
+                    bu.user_id,
+                    cca.BR_ACTIVITY_ID,
+                    max(case when q.id=1 and cca.answer = 0 then '0' end) question1_no,
+                    max(case when q.id=1 and cca.answer = 1 then '1' end) question1_yes,
+                    max(case when q.id=1 and cca.answer is null then '2' end) question1_Nap,
+                    max(case when q.id=2 and cca.answer = 0 then '0' end) question2_no,
+                    max(case when q.id=2 and cca.answer = 1 then '1' end) question2_yes,
+                    max(case when q.id=2 and cca.answer is null then '2' end) question2_Nap,
+                    max(case when q.id=3 and cca.answer = 0 then '0' end) question3_no,
+                    max(case when q.id=3 and cca.answer = 1 then '1' end) question3_yes,
+                    max(case when q.id=3 and cca.answer is null then '2' end) question3_Nap,
+                    max(case when q.id=4 and cca.answer = 0 then '0' end) question4_no,
+                    max(case when q.id=4 and cca.answer = 1 then '1' end) question4_yes,
+                    max(case when q.id=4 and cca.answer is null then '2' end) question4_Nap,
+                    max(case when q.id=5 and cca.answer = 0 then '0' end) question5_no,
+                    max(case when q.id=5 and cca.answer = 1 then '1' end) question5_yes,
+                    max(case when q.id=5 and cca.answer is null then '2' end) question5_Nap,
+                    max(case when q.id=6 and cca.answer = 0 then '0' end) question6_no,
+                    max(case when q.id=6 and cca.answer = 1 then '1' end) question6_yes,
+                    max(case when q.id=6 and cca.answer is null then '2' end) question6_Nap,
+                    max(case when q.id=7 and cca.answer = 0 then '0' end) question7_no,
+                    max(case when q.id=7 and cca.answer = 1 then '1' end) question7_yes,
+                    max(case when q.id=7 and cca.answer is null then '2' end) question7_Nap,
+                    max(case when q.id=8 and cca.answer = 0 then '0' end) question8_no,
+                    max(case when q.id=8 and cca.answer = 1 then '1' end) question8_yes,
+                    max(case when q.id=8 and cca.answer is null then '2' end) question8_Nap,
+                    max(case when q.id=9 and cca.answer = 0 then '0' end) question9_no,
+                    max(case when q.id=9 and cca.answer = 1 then '1' end) question9_yes,
+                    max(case when q.id=9 and cca.answer is null then '2' end) question9_Nap,
+                    max(case when q.id IN (1,2,3,4,5,6,7,8,9) and cca.answer IN(0,1) then '1' end) contactStatusYes
+            From    APPTM.question q
+            JOIN    APPTM.role_wise_question rwq ON q.id=rwq.question_id 
+            and     rwq.role_id=11
+            JOIN    APPTM.cross_check_activity cca ON q.id=cca.question_id
+            JOIN    APPTM.bractivity ba ON ba.id=cca.br_activity_id
+            JOIN    APPTM.v_teritory_all vt ON vt.route_id=ba.route_id
+            JOIN    APPTM.bruser bu ON cca.checked_by_br_user = bu.user_id
+            where   to_char(cca.added_date,'dd-mm-yyyy')=:targetDate
+            and     vt.division_id like :divisionId || '%'
+            and     vt.teritory_id like :teritoryId || '%'
+            group   by vt.route_id,bu.user_id,cca.BR_ACTIVITY_ID
+            )
+            GROUP   BY user_id
+)bb     ON aa.user_id=bb.user_id
+group   by divisionId,divisionName,teritoryId,teritoryName

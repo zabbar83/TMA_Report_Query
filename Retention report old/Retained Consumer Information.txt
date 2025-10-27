@@ -11,16 +11,17 @@ select  bac.division_id divisionId,
         bac.LAST_ACTIVITY_DATE lastConDate,
         bac.user_name tmrId,
         bac.name tmrName,
-        crs.RETENTION_STATUS verificationStatus,
+        crs.RETENTION_STATUS verificationStatusTm,
         case when crs.role = 'DIVISION_MANAGER' then 'DM'
              when crs.role = 'TERRITORY_MANAGER' then 'TM'
              else crs.role 
-        end verifiedBy,
-        crs.CHECKED_DATE verificationDate,
-        NVL(ccvs.CHECKED_STATUS,'Not_check') status ,
-        NVL(ccvs.CHECKED_BY_USER_ROLE,'N/A') changeVerified,
-        crs.id crossCheckId
-        
+        end verifiedByTm,
+        crs.CHECKED_DATE verificationDateTm,
+        ccvs.ADDED_DATE verificationDateSm,
+        NVL(ccvs.CHECKED_STATUS,'Not_checked_yet') statusSm ,
+        NVL(ccvs.CHECKED_BY_USER_ROLE,'N/A') changeVerifiedSm,
+        ccvs.added_date checkedDateSm,
+        crs.id crossCheckId        
 From 
 (SELECT
         id,
@@ -89,7 +90,6 @@ WHERE   crcc.role = dsl.role
 )
 
 where   rnk = 1
-and     RETENTION_STATUS = 'Retained' 
 ) crs 
 JOIN
 (
@@ -117,8 +117,9 @@ JOIN    apptm.bruser bu ON cr.BR_USER_USER_ID=bu.user_id
 JOIN    apptm.brand_representative brep ON bu.user_id=brep.BR_USER_USER_ID
 JOIN    apptm.product p ON p.product_id=cr.product_id
 where   cr.LAST_ACTIVITY_DATE between to_date(:fromDate,'dd-mm-yyyy') and to_date(:toDate,'dd-mm-yyyy')
-AND     v.teritory_id IN(:teritoryId)
+AND     v.division_id like '%' || :divisionId || '%'
+AND     v.teritory_id like '%' || :teritoryId || '%'
 )bac
-ON crs.br_activity_consumer_id = bac.br_activity_consumer_id
+        ON crs.br_activity_consumer_id = bac.br_activity_consumer_id
 LEFT    JOIN apptm.CROSS_CHECK_VERIFY_BY_SALES ccvs ON crs.id=ccvs.CON_RET_CROSS_CHE_ID
 order   by bac.division_id ,bac.teritory_id ,bac.LAST_ACTIVITY_DATE ,bac.user_name,crs.CHECKED_DATE 
