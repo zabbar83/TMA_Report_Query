@@ -165,4 +165,4 @@ FROM    target t
 LEFT    JOIN achievement a
         ON t.tarDate=a.tarDate
 LEFT    JOIN giftCount gc
-        ON t.tarDate=gc.tarDate;
+        ON t.tarDate=gc.tarDate
