@@ -1,0 +1,75 @@
+SELECT             v.teritory_name AS territoryName,
+                   v.zone_name AS zoneName,
+                   v.route_name AS routeName,
+                   c.TRADE_LICENSE_NAME AS outletName,
+                   c.CUSTOMER_NAME AS outletOwner,
+                   c.MOBILE_NO AS outletMobile,
+                   ba.br_team_team_id AS teamId,
+                   bt.team_name AS teamName,
+                   bu.user_name AS brUserName,
+                   brep.name AS brName,
+                   CASE
+                       WHEN brep.br_designation = 3 THEN 'BR'
+                   END AS brDesignation,
+                   brep.contact_number AS brMobile,
+                   ba.add_date_time AS addDate,
+                   bc.customer_name AS customerName,
+                   bc.age AS customerAge,
+                   bcon.contact_number AS customerMobile,
+                   bc.district AS district,
+                   bc.thana AS thana,
+                   bc.id AS brActivityConsumerId,
+                   bc.customer_address AS customerAddress,
+                   ba.is_repeat_contact AS isRepeatContact,
+                   ba.ID AS brActivityId,
+                   ba.consumer_type as consumerType,
+                   ba.CLUSTER_NAME as clusterName,
+                   NVL(CASE
+                       WHEN ba.using_brand = 31 THEN 'PATRON'
+                       WHEN ba.using_brand = 32 THEN 'MOND'
+                       WHEN ba.using_brand = 30 THEN 'Lamer'
+                       WHEN ba.using_brand = 33 THEN 'ORIS'
+                       WHEN ba.using_brand = 28 THEN 'Marlboro'
+                       WHEN ba.using_brand = 29 THEN 'Benson'
+                       WHEN ba.using_brand = 11 THEN 'Gold_Leaf'
+                       WHEN ba.using_brand = 17 THEN 'Camel'
+                       WHEN ba.using_brand = 10 THEN 'Star'
+                       WHEN ba.using_brand = 2 THEN 'Derby'
+                       WHEN ba.using_brand = 8 THEN 'Navy'
+                       WHEN ba.using_brand = 12 THEN 'LUCKY_STRIKE'
+                       
+                   END,'OTHERS_Brand') AS usingBrand,
+                   p.product_name AS offeredBrand,
+                   p.product_id AS offeredBrandProductId,
+                   ba.contact_module AS contactModule,
+                           CASE
+                       WHEN ba.sampling_no >0 then 1
+                       ELSE 0
+                   END AS sampling,
+                   CASE
+                       WHEN ba.sampling_no >0 then 'Yes'
+                       ELSE 'N/A'
+                   END AS samplingStatus,
+                   CASE
+                       WHEN vs.quantity >0 then 'Yes'
+                       ELSE 'No'
+                   END AS vaoStatus,
+                   CASE
+                       WHEN vs.quantity > 0 then 1
+                       ELSE 0
+                   END AS vaoGift
+            FROM apptm.bractivity ba
+            JOIN apptm.v_teritory_all v ON v.route_id = ba.route_id
+            JOIN apptm.bruser bu ON ba.br_user_id = bu.user_id
+            JOIN apptm.brand_representative brep ON ba.br_user_id = brep.br_user_user_id
+            JOIN apptm.brteam bt ON ba.br_team_team_id = bt.team_id
+            JOIN apptm.consumer c ON c.id = ba.outlet_id
+            JOIN apptm.bractivity_consumer bc ON ba.br_activity_consumer_id = bc.id
+            JOIN apptm.bractivity_contact bcon ON bc.br_activity_contact_id = bcon.id
+            JOIN apptm.product p ON ba.offered_brand = p.product_id
+            AND  ba.contact_module=:contactModule
+            LEFT JOIN apptm.vao_sale vs ON vs.bractivity_id = ba.id
+            WHERE (:divisionId is null or v.division_id= :divisionId)
+            and   (:territoryId is null or v.teritory_id= :territoryId)
+            AND ba.target_date = :targetDate
+            ORDER BY ba.id DESC

@@ -1,0 +1,58 @@
+select  
+        DISTINCT
+        vta.WING_ID wingId,
+        vta.WING_NAME wingName,
+        vta.DIVISION_ID divisionId,
+        vta.DIVISION_NAME divisionName,
+        vta.TERITORY_ID teritoryId,
+        vta.TERITORY_NAME teritoryName,
+        bru.user_name userName,
+        bru.br_name brName,
+        bru.status attenStatus,
+        statusNo * 50 contactTarget,
+        NVL(bac.total_con,0) totalContact,
+        ROUND(case when statusNo * 50 > 0 then (NVL(bac.total_con,0)/(statusNo * 50)) * 100  else 0 end,2) totalConAch,
+        statusNo * 50 samplingTarget,
+        NVL(bac.sampling,0) sampling,
+        ROUND(case when statusNo * 50 > 0 then (NVL(bac.sampling,0)/(statusNo * 50)) * 100  else 0 end,2) samplingAch,
+        statusNo * 5 vaoTarget,
+        NVL(bac.vao,0) vao,
+        ROUND(case when statusNo * 5 > 0 then (NVL(bac.vao,0)/(statusNo * 5)) * 100  else 0 end,2) vaoAch
+from    (select * from apptm.v_teritory_all
+where   (:divisionId is null or division_id= :divisionId)
+and     (:teritoryId is null or teritory_id= :teritoryId)
+        )vta
+JOIN    (
+        select  
+        bu.teritory_id,
+        br_user,
+        bu.user_name,
+        br.name br_name,
+        status,
+        case when status='PRESENT' then 1 else 0 end statusNo,
+        att_time
+from
+       ((SELECT ba.BR_USER_USER_ID br_user, 'PRESENT' status, TO_CHAR(ba.ATTENDANCE_DATE_TIME, 'dd-mm-yyyy') att_time
+        FROM apptm.BRUSER_ATTENDANCE ba  
+        WHERE ba.ATTENDANCE_DATE =:targetDate)
+        UNION all
+        (SELECT bul.BR_USER_USER_ID br_user,'ABSENT' status, TO_CHAR(bul.LEAVE_DATE_TIME, 'dd-mm-yyyy') att_time
+        FROM apptm.BR_USER_LEAVE bul 
+        WHERE TO_char(bul.LEAVE_DATE_TIME, 'DD-MON-YY')=:targetDate)) br_user
+        JOIN apptm.BRUSER_ROLES br ON br_user.br_user = br.BRUSER_USER_ID
+        and  ROLES_ID=12
+        JOIN apptm.BRUSER bu ON br_user.br_user = bu.USER_ID 
+        AND bu.IS_ACCOUNT_NON_EXPIRED = 1
+        JOIN apptm.brand_representative br on bu.user_id=br.br_user_user_id
+        ) bru
+        ON vta.teritory_id=bru.teritory_id
+LEFT    JOIN (select  ba.br_user_id,
+                count(distinct ba.id) total_con,
+                sum(ba.sampling_no) sampling,
+                sum(vs.quantity) vao
+        from    (select * from apptm.bractivity where TARGET_DATE =:targetDate and contact_module=:module) ba
+        LEFT    JOIN apptm.vao_sale vs on ba.id=vs.bractivity_id
+        group   by ba.br_user_id
+        ) bac
+        ON bru.br_user=bac.br_user_id
+ORDER   by vta.WING_ID, vta.DIVISION_ID, vta.TERITORY_ID, bru.user_name
