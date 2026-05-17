@@ -1,0 +1,150 @@
+select bac.division_id      divisionId,
+       bac.division_name    divisionName,
+       bac.teritory_id      teritoryId,
+       bac.teritory_name    teritoryName,
+       bac.route_name       routeName,
+       bac.customer_name    consumerName,
+       bac.customer_address consumerAddress,
+       bac.contact_number   contactNumber,
+       bac.product_name     reClaimBrand,
+       bac.reClaimDate      reClaimDate,
+       bac.lastConDate      lastConDate,
+       bac.user_name        tmrId,
+       bac.name             tmrName,
+       crs.RETENTION_STATUS verificationStatus,
+       case
+           when crs.role = 'DIVISION_MANAGER' then 'DTMO'
+           when crs.role = 'TERRITORY_MANAGER' then 'TMO'
+           else crs.role
+           end              verifiedBy,
+       crs.CHECKED_DATE     verificationDate,
+       CASE 
+            crs.using_brand
+                        WHEN 0  THEN 'MARISE'
+                        WHEN 1  THEN 'DERBY'
+                        WHEN 2  THEN 'PILOT'
+                        WHEN 3  THEN 'HOLLYWOOD'
+                        WHEN 4  THEN 'SHEIKH'
+                        WHEN 5  THEN 'ROYALS'
+                        WHEN 6  THEN 'K2'
+                        WHEN 7  THEN 'NAVY'
+                        WHEN 8  THEN 'REAL'
+                        WHEN 9  THEN 'STAR'
+                        WHEN 10 THEN 'GOLD_LEAF'
+                        WHEN 11 THEN 'LUCKY_STRIKE'
+                        WHEN 12 THEN 'RALLY_VERVE'
+                        WHEN 13 THEN 'RALLY_RACER'
+                        WHEN 14 THEN 'Marise Special Blend'
+                        WHEN 15 THEN 'Black Diamond'
+                        WHEN 16 THEN 'CAMEL'
+                        WHEN 17 THEN 'PRIME GOLD'
+                        WHEN 18 THEN 'LD'
+                        WHEN 19 THEN 'Navy Option'
+                        WHEN 20 THEN 'BDDF'
+                        WHEN 21 THEN 'BD FINECUT'
+                        WHEN 22 THEN 'BD ADVANCED'
+                        WHEN 23 THEN 'SUPREME'
+                    else 'Others'
+        END AS usingBrand
+From (SELECT added_date,
+             CHECKED_DATE,
+             RETENTION_STATUS,
+             CHECKED_BY_BR_USER,
+             CHECKED_BY_USER,
+             BR_ACTIVITY_CONSUMER_ID,
+             role,
+             product_id,
+             using_brand
+      FROM (SELECT crcc.*,
+                   dsl.sl,
+                   bao.using_brand,
+                   ROW_NUMBER() OVER (PARTITION BY crcc.br_activity_consumer_id ORDER BY crcc.br_activity_consumer_id, dsl.sl) rnk
+            FROM ((select to_char(cre.added_date, 'dd-MON-yy')                added_date,
+                          NVL(to_char(crcc.CHECKED_DATE, 'dd-MON-YY'), 'N/A') CHECKED_DATE,
+                          NVL(crcc.RETENTION_STATUS, 'N/A')                   RETENTION_STATUS,
+                          NVL(to_char(crcc.CHECKED_BY_BR_USER), 'N/A')        CHECKED_BY_BR_USER,
+                          NVL(to_char(crcc.CHECKED_BY_USER), 'N/A')           CHECKED_BY_USER,
+                          cre.BR_ACTIVITY_CONSUMER_ID,
+                          NVL(ro.role, 'N/A')                                 role,
+                          cre.product_id,
+                          cre.last_activity_id
+                   from apptm.consumer_retention cre
+                            LEFT JOIN apptm.consumer_retention_cross_check crcc
+                                      ON cre.BR_ACTIVITY_CONSUMER_ID = crcc.BR_ACTIVITY_CONSUMER_ID
+                            LEFT JOIN apptm.bruser_roles brl ON crcc.CHECKED_BY_BR_USER = brl.bruser_user_id
+                            LEFT JOIN apptm.role ro ON ro.id = brl.roles_id
+                   where cre.added_date between to_date(:fromDate, 'dd-mm-yyyy') and to_date(:toDate, 'dd-mm-yyyy'))
+                  union all
+                  (select to_char(cre.added_date, 'dd-MON-yy')                added_date,
+                          NVL(to_char(crcc.CHECKED_DATE, 'dd-MON-YY'), 'N/A') CHECKED_DATE,
+                          NVL(crcc.RETENTION_STATUS, 'N/A')                   RETENTION_STATUS,
+                          NVL(to_char(crcc.CHECKED_BY_BR_USER), 'N/A')        CHECKED_BY_BR_USER,
+                          NVL(to_char(crcc.CHECKED_BY_USER), 'N/A')           CHECKED_BY_USER,
+                          cre.BR_ACTIVITY_CONSUMER_ID,
+                          NVL(r.role, 'N/A')                                  role,
+                          cre.product_id,
+                          cre.last_activity_id
+                   FROM apptm.consumer_retention cre
+                            LEFT JOIN apptm.consumer_retention_cross_check crcc
+                                      ON cre.BR_ACTIVITY_CONSUMER_ID = crcc.BR_ACTIVITY_CONSUMER_ID
+                            LEFT JOIN apptm.users_roles ur ON crcc.CHECKED_BY_USER = ur.users_user_id
+                            LEFT JOIN apptm.role r ON r.id = ur.roles_id
+                   where cre.added_date between to_date(:fromDate, 'dd-mm-yyyy') and to_date(:toDate, 'dd-mm-yyyy'))
+                   ) crcc
+                   join (select id,using_brand from apptm.bractivity --where target_date between to_date(:fromDate, 'dd-mm-yyyy') and to_date(:toDate, 'dd-mm-yyyy')
+                        union
+                        select id,using_brand from apptm.bractivity_old --where target_date between to_date(:fromDate, 'dd-mm-yyyy') and to_date(:toDate, 'dd-mm-yyyy')
+                        ) bao on crcc.last_activity_id=bao.id
+                        ,
+                 (SELECT 1 sl, 'DIVISION_MANAGER' role
+                  FROM DUAL
+                  UNION ALL
+                  SELECT 2 sl, 'TERRITORY_MANAGER' role
+                  FROM DUAL
+                  UNION ALL
+                  SELECT 3 sl, 'TMS' role
+                  FROM DUAL
+                  UNION ALL
+                  SELECT 4 sl, 'N/A' role
+                  FROM DUAL) dsl
+            WHERE crcc.role = dsl.role)
+
+      where rnk = 1
+        and RETENTION_STATUS like '' || :retentionStatus || '%') crs
+         JOIN
+     (SELECT v.division_id,
+             v.division_name,
+             v.teritory_id,
+             v.teritory_name,
+             v.route_id,
+             v.route_name,
+             cr.br_activity_consumer_id,
+             bc.CUSTOMER_NAME,
+             bcon.contact_number,
+             bc.CUSTOMER_ADDRESS,
+             p.product_name,
+             case
+                 when bu.user_name is not null then bu.user_name
+                 when u.user_id is not null then u.user_name
+                 end               user_name,
+             case
+                 when brep.name is not null then brep.name
+                 when t.teritory_name is not null then t.teritory_name
+                 else 'N/A'
+                 end               name,
+             cr.added_date         reClaimDate,
+             cr.LAST_ACTIVITY_DATE lastConDate
+      FROM apptm.v_teritory_all v
+               JOIN apptm.consumer_retention cr ON cr.route_id = v.route_id
+               JOIN apptm.bractivity_consumer bc ON cr.br_activity_consumer_id = bc.id
+               JOIN apptm.bractivity_contact bcon ON bc.br_activity_contact_id = bcon.id
+               left JOIN apptm.bruser bu ON cr.BR_USER_USER_ID = bu.user_id
+               left JOIN apptm.brand_representative brep ON bu.user_id = brep.BR_USER_USER_ID
+               JOIN apptm.product p ON p.product_id = cr.product_id
+               left JOIN apptm.users u on cr.user_id = u.user_id
+               left JOIN apptm.teritory t ON u.teritory_id = t.id
+      where cr.added_date between to_date(:fromDate, 'dd-mm-yyyy') and to_date(:toDate, 'dd-mm-yyyy')
+        AND v.division_id like '%' || :divisionId || '%'
+        AND v.teritory_id like '%' || :teritoryId || '%') bac
+     ON crs.br_activity_consumer_id = bac.br_activity_consumer_id
+order by bac.division_id, bac.teritory_id, bac.reClaimDate, bac.lastConDate, crs.CHECKED_DATE, bac.user_name
